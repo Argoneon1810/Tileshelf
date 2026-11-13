@@ -1,0 +1,9 @@
+*.pem
+node_modules/
+tests/dev/preview.html
+tests/dev/lake.jpg
+tests/dev/ribbon.jpg
+dist/
+release/
+handoff/
+.agents/

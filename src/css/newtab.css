@@ -1,0 +1,554 @@
+/* 색은 모두 color-preset.md에서 가져온다. 새 색이 필요하면 거기에 먼저 추가할 것. */
+:root {
+  --key: #4c88d3;
+  --btn: #3a75bf;
+  --on-btn: #ffffff;
+  --default-bg: #29323c;
+  --ramp-50: #eef6ff;
+  --ramp-950: #0f1720;
+
+  --tile-icon: 56px;
+  --tile-w: 96px;
+  --dim: 0.24;
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+:root[data-size='sm'] { --tile-icon: 46px; --tile-w: 84px; }
+:root[data-size='lg'] { --tile-icon: 68px; --tile-w: 112px; }
+
+:root[data-theme='dark'] {
+  --glass: 25, 29, 35;
+  --text: #ebeff4;
+  --muted: #a9aeb6;
+  --focus: #6aa7f4;
+  --accent: #e176a1;
+  --success: #5cb572;
+  --warning: #d0901e;
+  --danger: #f27166;
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  --glass: 244, 247, 251;
+  --text: #1d2229;
+  --muted: #585e66;
+  --focus: #3a75bf;
+  --accent: #ae4974;
+  --success: #258343;
+  --warning: #a36500;
+  --danger: #c74b43;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font: 14px/1.5 'Segoe UI', 'Malgun Gothic', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--default-bg);
+  overflow-x: hidden;
+}
+[hidden] { display: none !important; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.glass {
+  background: rgba(var(--glass), .62);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(var(--glass), .35);
+}
+
+/* ---- 배경 ---- */
+/* 배경 층: (boot.js가 깐 지난번 그림) → 캔버스(그라데이션) → 잡음 → 사진용 어둡게 덮개 */
+#bg {
+  position: fixed; inset: 0; z-index: -1;
+  background-color: var(--boot-color, var(--default-bg));
+  background-image: var(--boot-bg, none);
+  transition: background-color .45s ease;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+#bg canvas, #bg .grain { position: absolute; inset: 0; width: 100%; height: 100%; }
+#bg canvas { display: block; }
+#bg .grain { mix-blend-mode: overlay; }
+#bg::after {
+  content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, var(--dim));
+  transition: opacity .45s ease, background-color .45s ease;
+}
+#bg[data-fit='gradient'] { background-size: cover; }
+#bg[data-fit='cover'] { background-size: cover; }
+#bg[data-fit='contain'] { background-size: contain; }
+#bg[data-fit='center'] { background-size: auto; }
+#bg[data-fit='repeat'] { background-size: auto; background-repeat: repeat; background-position: 0 0; }
+
+/* ---- 오른쪽 위 버튼 ---- */
+.top-actions { position: fixed; top: 16px; right: 20px; display: flex; gap: 8px; z-index: 2; }
+.icon-btn {
+  position: relative; width: 38px; height: 38px; border-radius: var(--radius-sm);
+  display: grid; place-items: center; cursor: pointer; padding: 0;
+}
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn:hover { background: rgba(var(--glass), .78); }
+.status-dot {
+  position: absolute; right: 5px; bottom: 5px; width: 9px; height: 9px; border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(var(--glass), 1);
+}
+.status-dot[data-state='ok'] { background: var(--success); }
+.status-dot[data-state='uploaded'] { background: var(--muted); }
+.status-dot[data-state='syncing'], .status-dot[data-state='waiting'], .status-dot[data-state='idle'] {
+  background: var(--muted); animation: pulse 1.2s ease-in-out infinite;
+}
+.status-dot[data-state='error'], .status-dot[data-state='too-big'] { background: var(--danger); }
+.status-dot[data-state='off'] { display: none; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+/* ---- 가운데 ---- */
+.center { position: relative; max-width: 1040px; margin: 12vh auto 64px; padding: 0 24px; }
+.search {
+  display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 20px;
+  border-radius: 25px; max-width: 680px; margin: 0 auto 44px;
+}
+.search svg { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.search input {
+  flex: 1; min-width: 0; border: 0; background: none; outline: none; font-size: 15px;
+}
+.search input::placeholder { color: var(--muted); }
+.search:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 40%, transparent); }
+
+/* ---- 검색 결과 판 (칩) ---- */
+.results {
+  max-width: 680px; margin: -28px auto 36px; padding: 18px 20px;
+  border-radius: var(--radius-lg); display: grid; gap: 16px;
+  background: rgba(var(--glass), .82);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .28);
+}
+.result-group { display: grid; gap: 8px; }
+.result-group + .result-group {
+  padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--muted) 22%, transparent);
+}
+.result-title {
+  margin: 0; font-size: 12px; font-weight: 600; color: var(--muted);
+}
+.result-empty {
+  margin: 0; font-size: 13px; color: var(--muted);
+}
+.chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+  padding: 6px 12px 6px 8px; border-radius: 999px; cursor: pointer;
+  background: rgba(var(--glass), .92); color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--muted) 32%, transparent);
+  transition: background-color .15s, border-color .15s, transform .12s var(--ease);
+}
+.chip:hover {
+  background: rgba(var(--glass), 1);
+  border-color: var(--muted);
+}
+.chip:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+  border-color: var(--focus);
+  background: rgba(var(--glass), 1);
+}
+.chip-ic {
+  width: 22px; height: 22px; border-radius: 6px; flex: none;
+  display: grid; place-items: center; overflow: hidden;
+  background: color-mix(in srgb, var(--muted) 16%, transparent);
+}
+.chip-ic img { width: 72%; height: 72%; object-fit: contain; }
+.chip-ic img.custom { width: 82%; height: 82%; border-radius: 4px; }
+.chip-ic .letter { font-size: 12px; font-weight: 600; color: var(--text); }
+.chip-ic svg { width: 14px; height: 14px; color: var(--muted); }
+.chip-lb {
+  font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 560px;
+}
+
+/* Chrome 기본 새 탭처럼 줄마다 가운데 정렬한다. 한 줄을 다 채우지 않은 줄(마지막 줄 포함)도 가운데에 온다. */
+.grid {
+  position: relative; /* 끌기 판정이 offsetLeft/Top을 격자 기준으로 쓴다 */
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 18px 8px; user-select: none;
+}
+.grid > .tile { flex: 0 0 var(--tile-w); }
+.tile { position: relative; width: var(--tile-w); border-radius: 14px; }
+.tile .link {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 8px 2px; text-decoration: none; color: inherit; border-radius: 14px;
+  -webkit-user-drag: none;
+}
+.tile .ic {
+  width: var(--tile-icon); height: var(--tile-icon); border-radius: 16px;
+  display: grid; place-items: center; overflow: hidden;
+  transition: transform .15s var(--ease), background .15s;
+}
+.tile .ic img { width: 50%; height: 50%; object-fit: contain; -webkit-user-drag: none; }
+.tile .ic img.custom { width: 62%; height: 62%; border-radius: 8px; }
+.tile .ic .letter { font-size: calc(var(--tile-icon) * .4); font-weight: 600; color: var(--text); }
+/* 말줄임 때문에 overflow: hidden을 쓰는데, 그러면 글자 그림자(가장 큰 것은 '그림자만'의 16px 번짐 + 1px 내림)도
+   상자 경계에서 잘린다. 그림자가 번질 만큼 padding을 주고 같은 만큼 margin을 빼서 자리는 그대로 둔다.
+   늘어난 상자가 옆 바로가기를 덮으므로 누르기는 받지 않는다(pointer-events: none) — 누르면 자기 링크로 간다.
+   그림자 크기를 바꾸면 --lb-room도 같이 바꿀 것. (tests/dev/shadow-clip.js가 검사함) */
+.tile .lb {
+  --lb-room: 18px;
+  pointer-events: none;
+  padding: var(--lb-room); margin: calc(-1 * var(--lb-room));
+  max-width: calc(var(--tile-w) - 4px + 2 * var(--lb-room)); font-size: 12.5px; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .7), 0 0 8px rgba(0, 0, 0, .4);
+}
+.tile .link:hover .ic { transform: translateY(-2px); background: rgba(var(--glass), .78); }
+.tile .more {
+  position: absolute; top: 2px; right: 6px; width: 24px; height: 24px; border-radius: 8px;
+  display: grid; place-items: center; padding: 0; cursor: pointer; opacity: 0;
+  transition: opacity .12s;
+}
+.tile .more svg { width: 14px; height: 14px; }
+.tile:hover .more, .tile .more:focus-visible { opacity: 1; }
+.badge {
+  position: absolute; top: 4px; left: calc(50% + var(--tile-icon) / 2 - 8px);
+  width: 12px; height: 12px; border-radius: 50%; background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--glass), 1); pointer-events: none;
+}
+.tile.add .ic { color: var(--text); }
+.tile.add .ic svg { width: 40%; height: 40%; }
+.tile.filtered { display: none; }
+
+/* 끌어서 옮기기 */
+.tile.placeholder .ic { background: transparent; border: 2px dashed var(--accent); backdrop-filter: none; }
+.tile.placeholder .ic > *, .tile.placeholder .lb, .tile.placeholder .badge, .tile.placeholder .more { visibility: hidden; }
+.drag-ghost {
+  position: fixed; z-index: 50; pointer-events: none; margin: 0;
+  transition: transform .05s linear;
+}
+.drag-ghost .ic { box-shadow: 0 12px 28px rgba(0, 0, 0, .35); outline: 2px solid var(--accent); transform: scale(1.08); }
+.drag-ghost .more, .drag-ghost .badge { display: none; }
+.dragging, .dragging * { cursor: grabbing !important; }
+
+.empty { text-align: center; margin-top: 8px; }
+.empty p { margin: 0 0 14px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+.empty .row { justify-content: center; }
+
+/* ---- 버튼 ---- */
+.btn {
+  border: 0; border-radius: var(--radius-sm); padding: 8px 16px; cursor: pointer;
+  background: rgba(var(--glass), .9); color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--muted) 35%, transparent);
+}
+.btn:hover { box-shadow: inset 0 0 0 1px var(--muted); }
+.btn.primary { background: var(--btn); color: var(--on-btn); box-shadow: none; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: none; box-shadow: none; }
+.btn.ghost:hover { background: rgba(var(--glass), .6); }
+.btn.danger { background: none; box-shadow: none; color: var(--danger); }
+.btn:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* ---- 대화상자 ---- */
+/* 브라우저 기본값은 모달 dialog에 overflow: auto를 줘서 안쪽 .sheet의 그림자를 dialog 상자에서 자른다.
+   dialog는 그림자를 그대로 내보내고, 내용이 길 때의 스크롤은 .sheet가 맡는다. */
+dialog {
+  border: 0; padding: 0; color: var(--text); background: none;
+  overflow: visible; max-width: none; max-height: none;
+}
+dialog::backdrop { background: rgba(0, 0, 0, .3); }
+.sheet {
+  width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto;
+  padding: 22px; border-radius: var(--radius-lg);
+  background: rgba(var(--glass), .88); backdrop-filter: blur(22px) saturate(1.2);
+  border: 1px solid rgba(var(--glass), .4); box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+}
+.sheet h2 { margin: 0 0 16px; font-size: 17px; font-weight: 600; }
+.sheet p { margin: 0 0 14px; color: var(--muted); }
+.icon-pick { display: flex; gap: 14px; align-items: center; margin-bottom: 16px; }
+.icon-pick .ic {
+  width: 60px; height: 60px; border-radius: 16px; display: grid; place-items: center; flex: none;
+  background: rgba(var(--glass), .7); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--muted) 35%, transparent);
+}
+.icon-pick .ic img { width: 50%; height: 50%; object-fit: contain; }
+.icon-pick .ic img.custom { width: 62%; height: 62%; border-radius: 8px; }
+.icon-pick .ic .letter { font-size: 24px; font-weight: 600; }
+.icon-pick .row { gap: 4px; }
+.icon-pick .btn { padding: 5px 10px; font-size: 13px; }
+.field { display: block; margin-bottom: 12px; }
+.field > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.field input[type='text'], .field input[type='url'], .field select {
+  width: 100%; height: 40px; padding: 8px 12px; border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--muted) 45%, transparent);
+  background: rgba(var(--glass), .9); outline: none;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 35%, transparent);
+}
+.error { color: var(--danger); font-size: 13px; min-height: 1.5em; margin: -4px 0 8px; }
+.actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.actions .row { margin-left: auto; }
+
+/* ---- 설정 (오른쪽 서랍) ---- */
+dialog.drawer {
+  margin: 0 0 0 auto; height: 100vh; max-height: 100vh; width: min(380px, 100vw);
+  transform: translateX(40px); opacity: 0; pointer-events: none;
+  /* 닫을 때도 미끄러져 나가도록 display와 overlay를 전환이 끝날 때까지 붙들어 둔다 */
+  transition: transform .18s var(--ease), opacity .18s var(--ease), overlay .18s allow-discrete, display .18s allow-discrete;
+}
+dialog.drawer[open] { transform: none; opacity: 1; pointer-events: auto; transition-duration: .22s; }
+@starting-style { dialog.drawer[open] { transform: translateX(40px); opacity: 0; } }
+dialog.drawer::backdrop {
+  background: transparent;
+  transition: background-color .18s var(--ease), overlay .18s allow-discrete, display .18s allow-discrete;
+}
+dialog.drawer[open]::backdrop { background: rgba(0, 0, 0, .3); transition-duration: .22s; }
+@starting-style { dialog.drawer[open]::backdrop { background: transparent; } }
+dialog.drawer .sheet {
+  width: 100%; height: 100%; max-height: none; border-radius: 0; overflow-y: auto; padding: 22px 22px 40px;
+  border-width: 0 0 0 1px;
+}
+.drawer header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.drawer header h2 { margin: 0; }
+.drawer section { padding: 16px 0; border-top: 1px solid color-mix(in srgb, var(--muted) 25%, transparent); }
+.drawer section:first-of-type { border-top: 0; }
+.drawer h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+.drawer .note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.drawer .note.warn { color: var(--warning); }
+.drawer .note.bad { color: var(--danger); }
+
+/* 2단계 설정 서랍 (첫 화면 요약 목록 + 하위 화면) */
+.tier-label {
+  margin: 14px 0 6px; font-size: 11.5px; font-weight: 600;
+  color: var(--muted); letter-spacing: 0.02em;
+}
+.tier-label:first-of-type { margin-top: 4px; }
+.drill-stage { display: flex; flex-direction: column; min-height: 100%; }
+.drill-list { display: grid; gap: 6px; margin: 4px 0 12px; }
+.drill-item {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
+  background: rgba(var(--glass), .52); color: var(--text); text-align: left; cursor: pointer;
+}
+.drill-item:hover { border-color: var(--muted); background: rgba(var(--glass), .8); }
+.drill-item-text { display: grid; gap: 2px; min-width: 0; }
+.drill-item-text b { font-size: 14px; font-weight: 600; }
+.drill-item-text span {
+  font-size: 12px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.drill-arrow { font-size: 14px; color: var(--muted); flex: none; }
+.drill-subhead {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-bottom: 12px; margin-bottom: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+}
+.drill-back { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 13px; }
+.drill-subhead h3 { margin: 0; font-size: 15px; font-weight: 600; }
+[data-drill-page] > section { padding: 0; border-top: 0; }
+[data-drill-page] > section > h3 { display: none; }
+
+.sync-line { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.sync-line .status-dot { position: static; box-shadow: none; }
+.history-disclosure { margin-top: 10px; }
+.history-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--muted) 32%, transparent);
+  background: rgba(var(--glass), .5); color: var(--text); font-size: 13px; cursor: pointer;
+}
+.history-toggle:hover { border-color: var(--muted); background: rgba(var(--glass), .75); }
+.history-toggle .chev { font-size: 12px; color: var(--muted); transition: transform .15s var(--ease); }
+.history-toggle[aria-expanded='true'] .chev { transform: rotate(180deg); }
+.history-panel { margin-top: 8px; }
+.history { list-style: none; margin: 10px 0 8px; padding: 0; display: grid; gap: 4px; }
+.history li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); background: rgba(var(--glass), .35); }
+.history li > div { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.history li b { font-weight: 600; font-size: 13px; }
+.history li span { font-size: 12px; color: var(--muted); }
+.history li.current { box-shadow: inset 0 0 0 1px var(--focus); }
+.history .now { font-size: 12px; color: var(--focus); padding: 0 6px; }
+.history .none { background: none; padding: 0; font-size: 12.5px; color: var(--muted); }
+.search-order { list-style: none; margin: 6px 0 8px; padding: 0; display: grid; gap: 6px; user-select: none; }
+.search-order li {
+  display: flex; align-items: center; justify-content: flex-start; gap: 10px;
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  background: rgba(var(--glass), .5);
+  border: 1px solid color-mix(in srgb, var(--muted) 28%, transparent);
+  transition: transform .12s var(--ease), background-color .12s, border-color .12s;
+}
+.search-order li.dragging-item {
+  opacity: .92; background: rgba(var(--glass), .95);
+  border-color: var(--accent); box-shadow: 0 8px 20px rgba(0, 0, 0, .28);
+}
+.drag-handle {
+  display: inline-grid; place-items: center; width: 26px; height: 26px;
+  border: 0; border-radius: 6px; padding: 0;
+  background: color-mix(in srgb, var(--muted) 16%, transparent); color: var(--muted);
+  cursor: grab; flex: none;
+}
+.drag-handle:hover, .drag-handle:focus-visible {
+  color: var(--text); background: color-mix(in srgb, var(--muted) 28%, transparent);
+}
+.drag-handle:active { cursor: grabbing; }
+.drag-handle svg { width: 14px; height: 14px; pointer-events: none; }
+.search-order .order-label { flex: 1; font-size: 13px; color: var(--text); min-width: 0; }
+.search-order .order-rank { font-size: 11.5px; color: var(--muted); flex: none; }
+.search-order li:first-child .order-rank { color: var(--focus); font-weight: 600; }
+.meter { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--muted) 25%, transparent); overflow: hidden; margin: 8px 0 4px; }
+.meter > i { display: block; height: 100%; background: var(--btn); border-radius: 3px; }
+.meter[data-level='warn'] > i { background: var(--warning); }
+.meter[data-level='bad'] > i { background: var(--danger); }
+
+.seg {
+  display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+}
+.seg button { border: 0; background: none; padding: 5px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.seg button[aria-pressed='true'] { background: rgba(var(--glass), 1); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+.setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; }
+.setting > span { color: var(--text); }
+
+.switch { position: relative; width: 40px; height: 22px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch i {
+  position: absolute; inset: 0; border-radius: 11px; pointer-events: none;
+  background: color-mix(in srgb, var(--muted) 45%, transparent); transition: background .15s;
+}
+.switch i::after {
+  content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; transition: transform .15s var(--ease);
+}
+.switch input:checked + i { background: var(--btn); }
+.switch input:checked + i::after { transform: translateX(18px); }
+.switch input:focus-visible + i { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+input[type='range'] { width: 150px; accent-color: var(--btn); }
+input[type='color'] { width: 40px; height: 30px; border: 0; padding: 0; background: none; cursor: pointer; }
+.thumb {
+  width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-md); margin-top: 10px;
+  background: var(--default-bg) center / cover no-repeat;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--muted) 35%, transparent);
+}
+.version { font-size: 12px; color: var(--muted); margin-top: 18px; }
+.legal-note { font-size: 11.5px; line-height: 1.45; color: var(--muted); margin-top: 6px; }
+
+/* ---- 바로가기 이름 글씨 처리 (data-legibility: shadow | dim | card) ----
+   사진 위 이름은 흰색, 그라데이션 위 이름은 판 글자색(어두운 판 밝은 글자, 밝은 판 어두운 글자)이다.
+   대비는 tests/dev/label-contrast.mjs로 이름 뒤 배경을 실측한다. */
+#bg .calm-shade {
+  position: absolute; border-radius: 64px; background: rgba(0, 0, 0, .66); filter: blur(48px);
+  opacity: 0; transition: opacity .45s ease;
+}
+#bg .calm-shade.on { opacity: 1; }
+/* 덮개는 없애지 않고 투명하게 둬서, 글씨 처리를 바꿀 때 서서히 나타나고 사라지게 한다 */
+:root:not([data-legibility='dim']) #bg::after { opacity: 0; }
+/* 밝은 판 그라데이션 위 이름은 어두운 글자라, 검게 덮으면 오히려 대비가 준다. 흰 막으로 덮어 밝힌다 */
+:root[data-bg='gradient'][data-theme='light'] #bg::after { background: rgba(255, 255, 255, var(--dim)); }
+:root[data-bg='gradient'] .tile .lb,
+:root[data-bg='gradient'] .empty p { color: var(--text); text-shadow: none; }
+:root[data-bg='gradient'][data-theme='dark'] .tile .lb { text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+/* 단색 위 이름은 배경색에 맞춰 고른 글자색(main.js의 readableOn) */
+:root[data-bg='color'] .tile .lb,
+:root[data-bg='color'] .empty p { color: var(--on-bg); text-shadow: none; }
+/* 판 색·글씨 처리가 바뀔 때 한순간에 바뀌지 않고 서서히 바뀌게 한다 */
+.glass, .tile .link, .sheet, .toast { transition: background-color .3s ease, border-color .3s ease, color .3s ease; }
+.tile .lb { transition: color .3s ease, text-shadow .3s ease; }
+
+/* 그림자만: 배경은 그대로 두고 글자 둘레를 넓게 어둡게(밝은 판 그라데이션에서는 밝게) 번지게 한다 */
+:root[data-legibility='shadow'] .tile .lb {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .85), 0 0 6px rgba(0, 0, 0, .6), 0 0 16px rgba(0, 0, 0, .4);
+}
+:root[data-legibility='shadow'][data-bg='gradient'][data-theme='light'] .tile .lb {
+  text-shadow: 0 0 2px rgba(255, 255, 255, .9), 0 0 6px rgba(255, 255, 255, .75), 0 0 16px rgba(255, 255, 255, .5);
+}
+
+/* 유리 카드: 아이콘과 이름을 한 장의 판에 담는다. 아주 밝은 배경에서도 판 글자색이 읽히도록 판을 진하게 둔다 */
+:root[data-legibility='card'] .grid { gap: 12px; }
+:root[data-legibility='card'] .tile .link {
+  padding: 12px 4px 10px; border-radius: 16px;
+  background: rgba(var(--glass), .86); backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(var(--glass), .35);
+}
+:root[data-legibility='card'] .tile .ic { background: none; border: none; backdrop-filter: none; }
+:root[data-legibility='card'] .tile .lb { color: var(--text); text-shadow: none; }
+:root[data-legibility='card'] .tile .link:hover { background: rgba(var(--glass), .95); }
+:root[data-legibility='card'] .tile.placeholder .link { background: none; border: 2px dashed var(--accent); backdrop-filter: none; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; padding: 0 2px; }
+.swatch {
+  position: relative; width: 24px; height: 24px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 0; background: var(--sw); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15);
+}
+.swatch[aria-pressed='true'], .swatch.custom.chosen { outline: 2px solid var(--text); outline-offset: 2px; }
+/* 직접 고르기: 색상환(OKLCH 명도 .72 채도 .15, 60°마다, mcp-color-convert로 계산)으로 표시하고,
+   직접 고른 색을 쓰는 중이면 가운데에 그 색 점을 올린다. 실제 색 고르기 창은 투명한 input이 연다. */
+.swatch.custom {
+  background: conic-gradient(#ee79a1, #e78b30, #99b234, #00c2a8, #30aff8, #b48df4, #ee79a1);
+  box-shadow: none;
+}
+.swatch.custom.chosen::after {
+  content: ''; position: absolute; inset: 5px; border-radius: 50%;
+  background: var(--sw); box-shadow: 0 0 0 2px rgba(var(--glass), 1);
+}
+.swatch.custom input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.swatch.custom:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn.small { padding: 3px 10px; font-size: 13px; }
+/* 구도 썸네일: 구도 이름 한 줄 + 변형 3개 */
+.thumbs { display: grid; gap: 10px; margin: 4px 0 8px; }
+.thumbs .comp > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.thumbs .vars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.thumb-btn {
+  position: relative; padding: 0; border: 0; border-radius: 8px; overflow: hidden; cursor: pointer;
+  aspect-ratio: 16 / 10; background: var(--default-bg);
+}
+.thumb-btn canvas { display: block; width: 100%; height: 100%; }
+.thumb-btn[aria-pressed='true'] { outline: 2px solid var(--text); outline-offset: 2px; }
+.check { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; font-size: 13px; color: var(--muted); }
+.check input { accent-color: var(--btn); width: 16px; height: 16px; }
+
+/* ---- 처음 실행 안내 ----
+   화면 가운데 모달. 뒤 화면이 바뀌는 걸 보며 고르도록 막은 깔지 않는다.
+   다음·이전 단추는 선택지 바로 아래에 둬서 손이 멀리 가지 않게 한다. */
+dialog.intro::backdrop { background: transparent; }
+dialog.intro .sheet { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+dialog.intro .actions { margin-top: 16px; }
+dialog.intro h3 { margin: 18px 0 6px; font-size: 14px; font-weight: 600; }
+dialog.intro .sync-line .status-dot { position: static; box-shadow: none; }
+/* 구도는 구도 하나를 한 열로, 변형 셋을 세로로 쌓는다. 설정 서랍처럼 구도마다 한 줄로 늘어놓으면
+   모달이 800px 가까이 되어 낮은 노트북 화면(768px)에서 이전·다음 단추까지 스크롤해야 한다 */
+#intro-thumbs { grid-template-columns: repeat(4, 1fr); }
+#intro-thumbs .vars { grid-template-columns: 1fr; gap: 6px; }
+dialog.intro h2 { margin-bottom: 8px; }
+.intro-dots { display: flex; gap: 6px; margin-bottom: 14px; }
+.intro-dots i { width: 22px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--muted) 35%, transparent); }
+.intro-dots i.on { background: var(--btn); }
+.choices { display: grid; gap: 8px; margin: 4px 0 10px; }
+.choices button {
+  display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 0; border-radius: var(--radius-md); cursor: pointer;
+  background: rgba(var(--glass), .7); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--muted) 35%, transparent);
+}
+.choices button span { font-size: 12.5px; color: var(--muted); }
+.choices button[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--btn); }
+
+/* ---- 알림 ---- */
+.toasts {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 100;
+  display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 16px; border-radius: var(--radius-md);
+  min-width: 300px; max-width: min(560px, calc(100vw - 32px)); pointer-events: auto;
+  background: rgba(var(--glass), .9); box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  animation: toast-in .2s var(--ease);
+}
+.toast > i { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--muted); }
+.toast[data-kind='success'] > i { background: var(--success); }
+.toast[data-kind='warning'] > i { background: var(--warning); }
+.toast[data-kind='danger'] > i { background: var(--danger); }
+.toast span { flex: 1; }
+.toast .btn { padding: 4px 10px; font-size: 13px; }
+@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

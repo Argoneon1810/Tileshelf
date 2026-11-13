@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>CPU·GPU 같은 그림인지</title></head>
+<body>
+<script type="module">
+  // aurora.js의 CPU 그리기(fieldAt)와 GPU 셰이더(FRAG)가 같은 그림을 내는지 픽셀로 비교한다.
+  // 결과는 window.__parity에 담는다: 경우마다 채널 차이의 최댓값과 평균.
+  import { buildScene, renderCPU, AuroraGL, COMPOSITIONS } from '/dist/js/aurora.js';
+  const W = 160;
+  const gl = AuroraGL.create();
+  const out = { webgl: Boolean(gl), cases: [] };
+  if (gl) {
+    for (const composition of COMPOSITIONS) {
+      for (const mode of ['dark', 'light']) {
+        for (const t of [0, 7.3]) {
+          const sc = buildScene({ accent: '#df5e97', mode, seed: 42, composition, aspect: 1.6 });
+          const cpu = renderCPU(sc, { width: W, t }).getContext('2d').getImageData(0, 0, W, W / 1.6).data;
+          gl.draw(sc, t, W, W / 1.6);
+          const c2 = document.createElement('canvas');
+          c2.width = W; c2.height = W / 1.6;
+          const ctx = c2.getContext('2d');
+          ctx.drawImage(gl.canvas, 0, 0);
+          const gpu = ctx.getImageData(0, 0, W, W / 1.6).data;
+          let max = 0, sum = 0, n = 0;
+          for (let i = 0; i < cpu.length; i += 4) {
+            for (let k = 0; k < 3; k++) {
+              const dd = Math.abs(cpu[i + k] - gpu[i + k]);
+              max = Math.max(max, dd); sum += dd; n++;
+            }
+          }
+          out.cases.push({ composition, mode, t, max, mean: +(sum / n).toFixed(3) });
+        }
+      }
+    }
+  }
+  window.__parity = out;
+  document.title = 'ready';
+</script>
+</body>
+</html>

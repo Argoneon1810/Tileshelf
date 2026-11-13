@@ -1,0 +1,21 @@
+{
+  // 스크립트 소스는 src/ts, 빌드하면 dist/js로 나온다. 그 밖의 파일(manifest, html, css, 아이콘)은 build.mjs가 src에서 dist로 복사한다.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["chrome"],
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "rootDir": "src/ts",
+    "outDir": "dist/js",
+    "removeComments": false,
+    "sourceMap": false
+  },
+  "include": ["src/ts/**/*"]
+}

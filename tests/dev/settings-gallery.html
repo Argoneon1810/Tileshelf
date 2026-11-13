@@ -1,0 +1,1503 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>설정 서랍 정보 구조 시안 갤러리</title>
+  <link rel="stylesheet" href="../../src/css/newtab.css">
+  <style>
+    /* 갤러리 상단 막대와 배치 (color-preset.md의 색 변수만 사용) */
+    body.gallery-page {
+      margin: 0;
+      padding: 0 0 64px;
+      background: var(--default-bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+    :root[data-theme='light'] body.gallery-page {
+      background: #d5dfee;
+    }
+    .gallery-bar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px 24px;
+      padding: 14px 24px;
+      background: rgba(var(--glass), .9);
+      backdrop-filter: blur(18px) saturate(1.2);
+      border-bottom: 1px solid color-mix(in srgb, var(--muted) 28%, transparent);
+    }
+    .gallery-bar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .gallery-bar h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .gallery-assumption {
+      margin: 0;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .gallery-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .gallery-controls > span {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* 시안 나란히 배치 (실제 서랍 폭 380px, 모자라면 줄바꿈) */
+    .gallery-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px 24px;
+      align-items: flex-start;
+      padding: 24px;
+    }
+    .variant-col {
+      width: 380px;
+      max-width: calc(100vw - 48px);
+      flex: 0 0 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .variant-meta {
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      background: rgba(var(--glass), .78);
+      border: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+    }
+    .variant-meta h2 {
+      margin: 0 0 4px;
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .variant-meta p {
+      margin: 0;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    /* 실제 서랍(.drawer .sheet)을 페이지 안에 고정 높이 서랍으로 표시 */
+    .drawer-frame {
+      width: 380px;
+      max-width: 100%;
+      height: 760px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+      border: 1px solid color-mix(in srgb, var(--muted) 30%, transparent);
+      display: flex;
+      flex-direction: column;
+      background: rgba(var(--glass), .88);
+      backdrop-filter: blur(22px) saturate(1.2);
+    }
+    .drawer-frame > .sheet {
+      width: 100%;
+      height: 100%;
+      max-height: none;
+      border-radius: 0;
+      border: 0;
+      box-shadow: none;
+      overflow-y: auto;
+      padding: 22px 22px 40px;
+    }
+
+    /* 공통: 단계 구분 머리글 (자주 쓰는 설정 / 가끔 쓰는 설정) */
+    .tier-label {
+      margin: 14px 0 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    .tier-label:first-of-type {
+      margin-top: 4px;
+    }
+
+    /* 공통: 접혀 있는 기록(체크포인트) 목록 여닫기 */
+    .history-disclosure {
+      margin-top: 10px;
+    }
+    .history-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid color-mix(in srgb, var(--muted) 32%, transparent);
+      background: rgba(var(--glass), .5);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .history-toggle:hover {
+      border-color: var(--muted);
+      background: rgba(var(--glass), .75);
+    }
+    .history-toggle .chev {
+      font-size: 12px;
+      color: var(--muted);
+      transition: transform .15s var(--ease);
+    }
+    .history-toggle[aria-expanded='true'] .chev {
+      transform: rotate(180deg);
+    }
+    .history-panel {
+      margin-top: 8px;
+    }
+
+    /* 공통: 검색 결과 순서 — 손잡이가 보이는 끌어서 순서 바꾸기 */
+    .search-order.draggable-order {
+      list-style: none;
+      margin: 6px 0 8px;
+      padding: 0;
+      display: grid;
+      gap: 6px;
+      user-select: none;
+    }
+    .search-order.draggable-order li {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(var(--glass), .5);
+      border: 1px solid color-mix(in srgb, var(--muted) 28%, transparent);
+      transition: transform .12s var(--ease), background-color .12s, border-color .12s;
+    }
+    .search-order.draggable-order li.dragging-item {
+      opacity: .92;
+      background: rgba(var(--glass), .95);
+      border-color: var(--accent);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .28);
+    }
+    .search-order.draggable-order li.drop-target {
+      border-style: dashed;
+      border-color: var(--accent);
+    }
+    .drag-handle {
+      display: inline-grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0;
+      background: color-mix(in srgb, var(--muted) 16%, transparent);
+      color: var(--muted);
+      cursor: grab;
+      flex: none;
+    }
+    .drag-handle:hover,
+    .drag-handle:focus-visible {
+      color: var(--text);
+      background: color-mix(in srgb, var(--muted) 28%, transparent);
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+    .drag-handle svg {
+      width: 14px;
+      height: 14px;
+      pointer-events: none;
+    }
+    .search-order.draggable-order .order-label {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .search-order.draggable-order .order-rank {
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .search-order.draggable-order li:first-child .order-rank {
+      color: var(--focus);
+      font-weight: 600;
+    }
+
+    /* 시안 1: 접었다 펴는 묶음 (아코디언) */
+    .acc-group {
+      border-top: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+    }
+    .acc-group:first-of-type {
+      border-top: 0;
+    }
+    .acc-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 13px 4px;
+      border: 0;
+      background: none;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+    }
+    .acc-header:hover {
+      color: var(--focus);
+    }
+    .acc-title-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 0;
+    }
+    .acc-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .acc-summary {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .acc-chev {
+      font-size: 12px;
+      color: var(--muted);
+      transition: transform .16s var(--ease);
+      flex: none;
+    }
+    .acc-header[aria-expanded='true'] .acc-chev {
+      transform: rotate(180deg);
+    }
+    .acc-body {
+      padding: 2px 0 16px;
+    }
+
+    /* 시안 2: 첫 화면 요약 목록 + 하위 화면 (2단계 드릴다운) */
+    .drill-stage {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+    .drill-list {
+      display: grid;
+      gap: 6px;
+      margin: 4px 0 12px;
+    }
+    .drill-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
+      background: rgba(var(--glass), .52);
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+    }
+    .drill-item:hover {
+      border-color: var(--muted);
+      background: rgba(var(--glass), .8);
+    }
+    .drill-item-text {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .drill-item-text b {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .drill-item-text span {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .drill-arrow {
+      font-size: 14px;
+      color: var(--muted);
+      flex: none;
+    }
+    .drill-subhead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+    }
+    .drill-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+    .drill-subhead h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    /* 시안 3: 위쪽 탭 */
+    .drawer-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      margin: 4px 0 12px;
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--muted) 18%, transparent);
+    }
+    .drawer-tab {
+      border: 0;
+      background: none;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .drawer-tab[aria-selected='true'] {
+      background: rgba(var(--glass), 1);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .15);
+    }
+
+    /* 시안 4: 서랍 안 왼쪽 분류 목록 */
+    .drawer-frame.split-drawer > .sheet {
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .split-top {
+      padding: 18px 20px 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+      margin-bottom: 0 !important;
+    }
+    .split-body {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 112px 1fr;
+    }
+    .split-nav {
+      padding: 12px 8px 20px;
+      border-right: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      overflow-y: auto;
+      background: rgba(var(--glass), .35);
+    }
+    .split-nav .tier-label {
+      margin: 10px 6px 3px;
+      font-size: 11px;
+    }
+    .split-nav .tier-label:first-of-type {
+      margin-top: 2px;
+    }
+    .split-nav-btn {
+      border: 0;
+      background: none;
+      text-align: left;
+      padding: 7px 8px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      color: var(--muted);
+      cursor: pointer;
+      line-height: 1.3;
+    }
+    .split-nav-btn:hover {
+      color: var(--text);
+      background: rgba(var(--glass), .55);
+    }
+    .split-nav-btn[aria-selected='true'] {
+      background: var(--btn);
+      color: var(--on-btn);
+      font-weight: 600;
+    }
+    .split-nav-foot {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid color-mix(in srgb, var(--muted) 22%, transparent);
+      display: grid;
+      gap: 6px;
+    }
+    .split-nav-foot .btn.small {
+      font-size: 11.5px;
+      padding: 5px 6px;
+      text-align: left;
+      line-height: 1.25;
+    }
+    .split-nav-foot .version {
+      margin: 0;
+      padding: 0 4px;
+      font-size: 11px;
+    }
+    .split-content {
+      padding: 16px 16px 32px;
+      overflow-y: auto;
+    }
+    .split-content section {
+      padding: 0;
+      border: 0;
+    }
+    .split-content .seg button {
+      padding: 5px 8px;
+    }
+    .split-content input[type='range'] {
+      width: 110px;
+    }
+  </style>
+</head>
+<body class="gallery-page">
+  <header class="gallery-bar">
+    <div class="gallery-bar-left">
+      <h1>설정 서랍 정보 구조 시안 갤러리</h1>
+      <p class="gallery-assumption">가정 안내: 자주 쓰는 항목(배경, 이름 가독성, 화면 설정)과 가끔 쓰는 항목(Google 계정 동기화, 기록, 백업)의 단계 구분은 이 시안 갤러리의 가정입니다. 조작 결과는 저장되지 않습니다.</p>
+    </div>
+    <div class="gallery-controls">
+      <span>갤러리 테마</span>
+      <div class="seg" id="page-theme-seg">
+        <button type="button" data-v="dark" aria-pressed="true">어둡게</button>
+        <button type="button" data-v="light" aria-pressed="false">밝게</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="gallery-grid" id="gallery-grid"></main>
+
+  <script>
+    // ---- 공통 상수 및 표본 데이터 (src/ts/ui/settings.ts, pickers.ts, aurora.ts와 동일) ----
+    const ACCENT_PRESETS = [
+      ['blue', '블루', '#4087de'],
+      ['purple', '퍼플', '#9163d5'],
+      ['pink', '핑크', '#df5e97'],
+      ['red', '레드', '#db4241'],
+      ['orange', '오렌지', '#e87f25'],
+      ['yellow', '옐로', '#ecbe24'],
+      ['green', '그린', '#3eab5e'],
+      ['teal', '틸', '#12a7a7'],
+      ['graphite', '그래파이트', '#767b80'],
+    ];
+
+    const BGCOLOR_PRESETS = [
+      ['night', '밤', '#0f1720'],
+      ['ink', '먹', '#29323c'],
+      ['slate', '돌', '#454e59'],
+      ['mist', '안개', '#d5dfee'],
+      ['snow', '눈', '#eef6ff'],
+    ];
+
+    const COMPOSITIONS = [
+      ['aurora', '오로라 띠'],
+      ['horizon', '지평선 빛'],
+      ['bloom', '한쪽 빛무리'],
+      ['currents', '두 물결'],
+    ];
+
+    const SEARCH_GROUP_LABELS = {
+      shortcuts: '바로가기',
+      url: '주소로 이동',
+      web: '웹 검색',
+    };
+
+    const LEGIBILITY_NOTES = {
+      auto: '검색창과 바로가기가 있는 영역만 배경을 차분하게 가라앉히고, 나머지 배경은 그대로 둡니다.',
+      shadow: '배경은 그대로 두고 글자 둘레에 그림자만 넣습니다. 밝은 사진이나 어두운 테마 그라데이션의 밝은 빛 위에서는 잘 안 읽힐 수 있습니다.',
+      dim: '배경 전체에 반투명 막을 씌웁니다(밝은 테마 그라데이션은 흰 막). 기본값 24%로는 밝은 사진이나 강한 빛 위에서 부족할 수 있으니 아래 막대로 조절하세요.',
+      calm: '검색창과 바로가기가 있는 영역만 배경을 차분하게 가라앉히고, 나머지 배경은 그대로 둡니다.',
+      card: '아이콘과 이름을 반투명 카드 안에 함께 넣습니다. 시험한 모든 배경에서 가장 잘 읽혔습니다.',
+    };
+
+    // 기록(체크포인트) 표본 20줄
+    const SAMPLE_HISTORY = [
+      { id: 'cp-20', what: '바로가기 1개 추가', when: '13:18', who: '이 기기', count: 18, current: true, sameRoot: true },
+      { id: 'cp-19', what: '순서 변경', when: '12:42', who: '이 기기', count: 17, current: false, sameRoot: true },
+      { id: 'cp-18', what: '설정 변경', when: '11:05', who: '다른 기기 8f2a', count: 17, current: false, sameRoot: true },
+      { id: 'cp-17', what: '바로가기 2개 수정', when: '09:30', who: '다른 기기 8f2a', count: 17, current: false, sameRoot: true },
+      { id: 'cp-16', what: '바로가기 1개 삭제', when: '10월 30일 22:14', who: '이 기기', count: 17, current: false, sameRoot: true },
+      { id: 'cp-15', what: '바로가기 3개 추가', when: '10월 30일 19:50', who: '이 기기', count: 18, current: false, sameRoot: true },
+      { id: 'cp-14', what: '설정 변경', when: '10월 30일 18:11', who: '이 기기', count: 15, current: false, sameRoot: true },
+      { id: 'cp-13', what: '순서 변경', when: '10월 29일 21:08', who: '다른 기기 8f2a', count: 15, current: false, sameRoot: true },
+      { id: 'cp-12', what: '바로가기 1개 수정', when: '10월 29일 16:40', who: '다른 기기 8f2a', count: 15, current: false, sameRoot: true },
+      { id: 'cp-11', what: '바로가기 2개 추가', when: '10월 28일 23:19', who: '이 기기', count: 15, current: false, sameRoot: true },
+      { id: 'cp-10', what: '기록에서 되돌림', when: '10월 28일 20:02', who: '이 기기', count: 13, current: false, sameRoot: true },
+      { id: 'cp-09', what: '설정 변경', when: '10월 28일 15:27', who: '이 기기', count: 13, current: false, sameRoot: true },
+      { id: 'cp-08', what: '바로가기 1개 삭제, 순서 변경', when: '10월 27일 22:45', who: '다른 기기 8f2a', count: 13, current: false, sameRoot: true },
+      { id: 'cp-07', what: '바로가기 1개 추가', when: '10월 27일 14:12', who: '다른 기기 8f2a', count: 14, current: false, sameRoot: true },
+      { id: 'cp-06', what: '설정 변경', when: '10월 26일 19:33', who: '이 기기', count: 13, current: false, sameRoot: true },
+      { id: 'cp-05', what: '바로가기 2개 수정', when: '10월 26일 11:04', who: '이 기기', count: 13, current: false, sameRoot: true },
+      { id: 'cp-04', what: '순서 변경', when: '10월 25일 17:58', who: '이 기기', count: 13, current: false, sameRoot: true },
+      { id: 'cp-03', what: '백업 파일 불러옴', when: '10월 24일 21:15', who: '이 기기', count: 13, current: false, sameRoot: true },
+      { id: 'cp-02', what: '바로가기 1개 추가', when: '10월 24일 09:47', who: '다른 기기 c41e', count: 4, current: false, sameRoot: false },
+      { id: 'cp-01', what: '새 동기화 방식으로 옮김', when: '10월 23일 18:00', who: '이 기기', count: 10, current: false, sameRoot: true },
+    ];
+
+    function defaultState() {
+      return {
+        syncEnabled: true,
+        syncStatus: '다른 기기와 동기화됨 · 13:18:04',
+        syncBytes: 18840,
+        historyOpen: false,
+        currentCp: 'cp-20',
+        bgType: 'gradient',
+        bgMotion: 'static',
+        accent: '#4087de',
+        bgColor: '#29323c',
+        bgComposition: 'aurora',
+        bgVariant: 0,
+        variantPage: 0,
+        bgFit: 'cover',
+        legibility: 'auto',
+        dim: 24,
+        theme: 'dark',
+        tileSize: 'md',
+        openInNewTab: false,
+        searchOrder: ['shortcuts', 'url', 'web'],
+      };
+    }
+
+    // 썸네일 캔버스에 그라데이션 미리보기 그리기 (외부 자원 없이 동작)
+    function drawThumbCanvas(canvas, accentHex, compIndex, varIndex, page) {
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const isLight = document.documentElement.dataset.theme === 'light';
+      ctx.fillStyle = isLight ? '#eef6ff' : '#0f1720';
+      ctx.fillRect(0, 0, w, h);
+
+      const shift = ((compIndex * 37 + varIndex * 61 + page * 97) % 100) / 100;
+      const gx = w * (0.22 + 0.56 * shift);
+      const gy = h * (0.25 + 0.5 * ((compIndex * 0.29 + varIndex * 0.17) % 1));
+      const grad = ctx.createRadialGradient(gx, gy, 4, gx, gy, w * 0.85);
+      grad.addColorStop(0, accentHex);
+      grad.addColorStop(0.55, accentHex + (isLight ? '55' : '66'));
+      grad.addColorStop(1, isLight ? '#eef6ff00' : '#0f172000');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      const gx2 = w * (0.8 - 0.5 * shift);
+      const gy2 = h * (0.75 - 0.4 * ((varIndex * 0.31) % 1));
+      const grad2 = ctx.createRadialGradient(gx2, gy2, 2, gx2, gy2, w * 0.6);
+      grad2.addColorStop(0, isLight ? '#ffffffaa' : '#4c88d388');
+      grad2.addColorStop(1, '#00000000');
+      ctx.fillStyle = grad2;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // ---- 6개 설정 섹션 HTML 생성기 (src/newtab.html과 동일한 항목 이름·구조) ----
+    function buildSections(uid) {
+      return {
+        background: `
+          <section data-sec="background">
+            <h3>배경</h3>
+            <div class="setting">
+              <span>배경 종류</span>
+              <div class="seg" data-role="bg-type">
+                <button type="button" data-v="gradient" aria-pressed="true">그라데이션</button><button type="button" data-v="color" aria-pressed="false">단색</button><button type="button" data-v="image" aria-pressed="false">내 사진</button>
+              </div>
+            </div>
+            <div data-role="bg-color-rows" hidden>
+              <div class="setting"><span>배경색</span></div>
+              <div class="swatches" data-role="bgcolor-swatches"></div>
+              <p class="note">바로가기 이름 글자색은 배경 밝기에 맞춰 흰색이나 어두운 색으로 자동 전환됩니다.</p>
+            </div>
+            <div data-role="bg-gradient-rows">
+              <div class="setting">
+                <span>움직임</span>
+                <div class="seg" data-setting="bgMotion">
+                  <button type="button" data-v="static" aria-pressed="true">정지</button><button type="button" data-v="motion" aria-pressed="false">흐르기</button>
+                </div>
+              </div>
+              <p class="note" data-role="motion-note" hidden></p>
+              <div class="setting"><span>강조색</span></div>
+              <div class="swatches" data-role="accent-swatches"></div>
+              <div class="setting">
+                <span>구도</span>
+                <button class="btn ghost small" type="button" data-role="bg-variants">다른 변형 보기</button>
+              </div>
+              <div class="thumbs" data-role="bg-thumbs"></div>
+              <p class="note">테마(어둡게·밝게)와 강조색, 구도에 따라 배경이 달라지며, 다른 기기에도 그대로 동기화됩니다.</p>
+            </div>
+            <div data-role="bg-image-rows" hidden>
+              <div class="thumb" data-role="bg-thumb" style="background-image: linear-gradient(135deg, #29323c 0%, #4c88d3 55%, #e176a1 100%);"></div>
+              <div class="row" style="margin-top:10px">
+                <button class="btn" type="button" data-role="bg-pick">사진 변경</button>
+              </div>
+              <input type="file" accept="image/*" hidden>
+              <p class="note warn" data-role="bg-missing" hidden>다른 기기에서 '내 사진'으로 설정했지만 사진은 동기화되지 않아 그라데이션이 대신 보입니다. 이 기기에서 쓸 사진을 고르거나 백업 파일을 불러오세요.</p>
+              <p class="note">사진은 이 기기에만 저장되며 Google 계정으로는 동기화되지 않습니다.</p>
+              <label class="field" style="margin-top:12px"><span>맞춤</span>
+                <select data-role="set-bgfit">
+                  <option value="cover">화면 채우기</option>
+                  <option value="contain">화면에 맞추기</option>
+                  <option value="center">가운데 맞춤 (원본 크기)</option>
+                  <option value="repeat">바둑판식 배열</option>
+                </select>
+              </label>
+            </div>
+          </section>
+        `,
+        legibility: `
+          <section data-sec="legibility">
+            <h3>이름 가독성</h3>
+            <label class="field"><span>가독성 효과</span>
+              <select data-role="set-legibility">
+                <option value="auto">자동 (중앙 음영)</option>
+                <option value="shadow">그림자 효과</option>
+                <option value="dim">배경 막</option>
+                <option value="calm">중앙 음영</option>
+                <option value="card">반투명 카드</option>
+              </select>
+            </label>
+            <div class="setting" data-role="dim-row" hidden>
+              <span>농도 조절 <b data-role="dim-value">24%</b></span>
+              <input data-role="set-dim" type="range" min="0" max="70" step="1" value="24">
+            </div>
+            <p class="note" data-role="legibility-note">${LEGIBILITY_NOTES.auto}</p>
+          </section>
+        `,
+        display: `
+          <section data-sec="display">
+            <h3>화면 설정</h3>
+            <div class="setting">
+              <span>테마</span>
+              <div class="seg" data-setting="theme">
+                <button type="button" data-v="system" aria-pressed="false">시스템</button><button type="button" data-v="dark" aria-pressed="true">어둡게</button><button type="button" data-v="light" aria-pressed="false">밝게</button>
+              </div>
+            </div>
+            <div class="setting">
+              <span>바로가기 크기</span>
+              <div class="seg" data-setting="tileSize">
+                <button type="button" data-v="sm" aria-pressed="false">작게</button><button type="button" data-v="md" aria-pressed="true">보통</button><button type="button" data-v="lg" aria-pressed="false">크게</button>
+              </div>
+            </div>
+            <div class="setting">
+              <span>새 탭에서 바로가기 열기</span>
+              <label class="switch"><input data-role="set-newtab" type="checkbox"><i></i></label>
+            </div>
+            <div class="setting">
+              <span>검색 결과 순서</span>
+            </div>
+            <ol class="search-order draggable-order" data-role="search-order" aria-label="검색 결과 순서"></ol>
+            <p class="note">맨 위 항목이 검색창에서 Enter를 두 번 눌렀을 때 바로 실행됩니다.</p>
+          </section>
+        `,
+        sync: `
+          <section data-sec="sync">
+            <h3>Google 계정 동기화</h3>
+            <div class="setting">
+              <span>같은 계정의 다른 기기와 자동 동기화</span>
+              <label class="switch"><input data-role="set-sync" type="checkbox" checked><i></i></label>
+            </div>
+            <div class="sync-line"><span class="status-dot" data-role="sync-dot" data-state="ok"></span><span data-role="sync-text">다른 기기와 동기화됨 · 13:18:04</span></div>
+            <div class="meter" data-role="sync-meter"><i style="width: 18.4%"></i></div>
+            <div class="note" data-role="sync-usage">계정 용량 18.4KB / 100.0KB 사용</div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn" type="button" data-role="sync-now">지금 동기화</button>
+            </div>
+            <p class="note">바로가기와 직접 넣은 아이콘, 배경·화면 설정이 동기화됩니다. 내 사진 배경은 용량 한도 때문에 이 기기에만 저장됩니다.</p>
+            <p class="note warn" data-role="sync-icons-note" hidden>직접 넣은 아이콘이 많아 계정 용량(100KB)이 모자랍니다. 일부 아이콘 그림은 올리지 못해, 그 그림이 없는 기기에서는 사이트 기본 아이콘으로 보입니다.</p>
+            <p class="note warn" data-role="sync-trimmed-note" hidden>계정 용량(100KB)이 모자라 이 기기의 오래된 기록 일부를 덜어 냈습니다.</p>
+          </section>
+        `,
+        history: `
+          <section data-sec="history">
+            <h3>기록</h3>
+            <p class="note">바로가기나 설정을 바꿀 때마다 기록이 남습니다. 기기마다 최근 100개가 계정에 남아, 어느 기기에서든 그때 상태로 되돌릴 수 있습니다. 배경 사진은 기록에 들어가지 않습니다.</p>
+            <div class="history-disclosure">
+              <button type="button" class="history-toggle" data-role="history-toggle" aria-expanded="false">
+                <span data-role="history-toggle-label">기록 목록 열기 (최근 20개)</span>
+                <span class="chev" aria-hidden="true">▼</span>
+              </button>
+              <div class="history-panel" data-role="history-panel" hidden>
+                <ol class="history" data-role="history"></ol>
+                <div class="row"><button class="btn ghost small" type="button" data-role="history-more" hidden>더 보기</button></div>
+              </div>
+            </div>
+          </section>
+        `,
+        backup: `
+          <section data-sec="backup">
+            <h3>백업</h3>
+            <div class="row">
+              <button class="btn" type="button" data-role="backup-export">백업 파일 내보내기</button>
+              <button class="btn" type="button" data-role="backup-import">백업 파일 불러오기</button>
+            </div>
+            <p class="note">백업 파일에는 바로가기와 아이콘, 화면 설정, 배경 사진이 모두 담깁니다.</p>
+            <input type="file" accept=".json,application/json" hidden>
+          </section>
+        `,
+        footer: `
+          <div class="row" style="margin-top: 12px;"><button class="btn ghost small" type="button" data-role="intro-again">처음 실행 안내 다시 보기</button></div>
+          <div class="version" data-role="version">Tileshelf 0.10.0</div>
+        `,
+      };
+    }
+
+    // ---- 각 시안 내부 공통 조작 연결 (스와치, 썸네일, 드래그·키보드 순서 변경, 기록 20줄 등) ----
+    function wireCommonControls(root, state, onStateChange) {
+      const q = (role) => root.querySelector(`[data-role="${role}"]`);
+
+      // 스와치 마운트
+      function setupSwatches(box, presets, key, label) {
+        if (!box) return;
+        box.replaceChildren();
+        for (const [, name, hex] of presets) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'swatch';
+          b.dataset.v = hex;
+          b.title = name;
+          b.setAttribute('aria-label', `${label} ${name}`);
+          b.style.setProperty('--sw', hex);
+          b.addEventListener('click', () => {
+            state[key] = hex;
+            renderCommon();
+          });
+          box.append(b);
+        }
+        const custom = document.createElement('label');
+        custom.className = 'swatch custom';
+        custom.title = '직접 색상 선택';
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.setAttribute('aria-label', `${label} 직접 선택`);
+        input.value = state[key];
+        input.addEventListener('change', () => {
+          state[key] = input.value;
+          renderCommon();
+        });
+        custom.append(input);
+        box.append(custom);
+      }
+
+      setupSwatches(q('accent-swatches'), ACCENT_PRESETS, 'accent', '강조색');
+      setupSwatches(q('bgcolor-swatches'), BGCOLOR_PRESETS, 'bgColor', '배경색');
+
+      // 배경 종류
+      q('bg-type')?.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-v]');
+        if (!b) return;
+        state.bgType = b.dataset.v;
+        renderCommon();
+      });
+
+      // 다른 변형 보기
+      q('bg-variants')?.addEventListener('click', () => {
+        state.variantPage++;
+        renderThumbs();
+      });
+
+      // 세그먼트 버튼 묶음 (움직임, 테마, 바로가기 크기)
+      for (const seg of root.querySelectorAll('.seg[data-setting]')) {
+        seg.addEventListener('click', (e) => {
+          const b = e.target.closest('button[data-v]');
+          if (!b) return;
+          state[seg.dataset.setting] = b.dataset.v;
+          renderCommon();
+        });
+      }
+
+      // 맞춤, 가독성 효과, 농도 막대
+      q('set-bgfit')?.addEventListener('change', (e) => {
+        state.bgFit = e.target.value;
+        renderCommon();
+      });
+      q('set-legibility')?.addEventListener('change', (e) => {
+        state.legibility = e.target.value;
+        renderCommon();
+      });
+      q('set-dim')?.addEventListener('input', (e) => {
+        state.dim = Number(e.target.value);
+        if (q('dim-value')) q('dim-value').textContent = state.dim + '%';
+      });
+
+      // 스위치 (동기화, 새 탭에서 열기)
+      q('set-sync')?.addEventListener('change', (e) => {
+        state.syncEnabled = e.target.checked;
+        renderCommon();
+      });
+      q('set-newtab')?.addEventListener('change', (e) => {
+        state.openInNewTab = e.target.checked;
+        renderCommon();
+      });
+
+      // 지금 동기화
+      q('sync-now')?.addEventListener('click', () => {
+        const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+        state.syncStatus = `다른 기기와 동기화됨 · ${now}`;
+        renderCommon();
+      });
+
+      // 기록 목록 여닫기
+      q('history-toggle')?.addEventListener('click', () => {
+        state.historyOpen = !state.historyOpen;
+        renderCommon();
+      });
+
+      function renderThumbs() {
+        const box = q('bg-thumbs');
+        if (!box) return;
+        box.replaceChildren();
+        COMPOSITIONS.forEach(([compKey, compName], ci) => {
+          const row = document.createElement('div');
+          row.className = 'comp';
+          row.innerHTML = `<span>${compName}</span><div class="vars"></div>`;
+          const vars = row.querySelector('.vars');
+          for (let k = 0; k < 3; k++) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'thumb-btn';
+            b.setAttribute('aria-label', `${compName} 변형 ${k + 1}`);
+            const pressed = state.bgType !== 'image' && state.bgComposition === compKey && state.bgVariant === k;
+            b.setAttribute('aria-pressed', String(pressed));
+            const c = document.createElement('canvas');
+            c.width = 192;
+            c.height = 120;
+            drawThumbCanvas(c, state.accent, ci, k, state.variantPage);
+            b.append(c);
+            b.addEventListener('click', () => {
+              state.bgComposition = compKey;
+              state.bgVariant = k;
+              state.bgType = 'gradient';
+              renderCommon();
+            });
+            vars.append(b);
+          }
+          box.append(row);
+        });
+      }
+
+      // 검색 결과 순서 (손잡이 마우스 끌기 + 손잡이 초점 시 위/아래 방향키로 이동)
+      function renderSearchOrder(focusKind) {
+        const box = q('search-order');
+        if (!box) return;
+        box.replaceChildren();
+
+        const moveItem = (fromIdx, toIdx, keepFocusKind) => {
+          if (toIdx < 0 || toIdx >= state.searchOrder.length || fromIdx === toIdx) return;
+          const next = [...state.searchOrder];
+          const [moved] = next.splice(fromIdx, 1);
+          next.splice(toIdx, 0, moved);
+          state.searchOrder = next;
+          renderSearchOrder(keepFocusKind);
+          if (onStateChange) onStateChange(state);
+        };
+
+        state.searchOrder.forEach((kind, idx) => {
+          const li = document.createElement('li');
+          li.dataset.kind = kind;
+          li.dataset.index = String(idx);
+
+          const handle = document.createElement('button');
+          handle.type = 'button';
+          handle.className = 'drag-handle';
+          handle.setAttribute('aria-label', `${SEARCH_GROUP_LABELS[kind]} 순서 옮기기 (방향키 위·아래 또는 끌기)`);
+          handle.title = '끌거나 방향키 위·아래로 순서 변경';
+          handle.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="3.5" r="1.3"/><circle cx="10.5" cy="3.5" r="1.3"/><circle cx="5.5" cy="8" r="1.3"/><circle cx="10.5" cy="8" r="1.3"/><circle cx="5.5" cy="12.5" r="1.3"/><circle cx="10.5" cy="12.5" r="1.3"/></svg>`;
+
+          // 키보드 방향키 조작
+          handle.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              moveItem(idx, idx - 1, kind);
+            } else if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              moveItem(idx, idx + 1, kind);
+            }
+          });
+
+          const label = document.createElement('span');
+          label.className = 'order-label';
+          label.textContent = SEARCH_GROUP_LABELS[kind];
+
+          const rank = document.createElement('span');
+          rank.className = 'order-rank';
+          rank.textContent = idx === 0 ? '1순위 (Enter 두 번)' : `${idx + 1}순위`;
+
+          // 마우스/포인터 끌기 조작
+          const startPointerDrag = (downEvent) => {
+            if (downEvent.button !== 0) return;
+            downEvent.preventDefault();
+            let currentIdx = idx;
+            li.classList.add('dragging-item');
+            document.body.classList.add('dragging');
+
+            const onMove = (moveEvent) => {
+              const items = [...box.querySelectorAll('li')];
+              for (let i = 0; i < items.length; i++) {
+                if (i === currentIdx) continue;
+                const rect = items[i].getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                if (
+                  (currentIdx < i && moveEvent.clientY > midY) ||
+                  (currentIdx > i && moveEvent.clientY < midY)
+                ) {
+                  const oldIdx = currentIdx;
+                  const next = [...state.searchOrder];
+                  const [moved] = next.splice(oldIdx, 1);
+                  next.splice(i, 0, moved);
+                  state.searchOrder = next;
+                  currentIdx = i;
+                  // DOM 순서 즉시 갱신
+                  if (oldIdx < i) {
+                    box.insertBefore(li, items[i].nextSibling);
+                  } else {
+                    box.insertBefore(li, items[i]);
+                  }
+                  // 순위 배지 갱신
+                  [...box.querySelectorAll('li')].forEach((el, rIdx) => {
+                    const r = el.querySelector('.order-rank');
+                    if (r) r.textContent = rIdx === 0 ? '1순위 (Enter 두 번)' : `${rIdx + 1}순위`;
+                  });
+                  if (onStateChange) onStateChange(state);
+                  break;
+                }
+              }
+            };
+
+            const onUp = () => {
+              window.removeEventListener('pointermove', onMove);
+              window.removeEventListener('pointerup', onUp);
+              li.classList.remove('dragging-item');
+              document.body.classList.remove('dragging');
+              renderSearchOrder();
+            };
+
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+          };
+
+          handle.addEventListener('pointerdown', startPointerDrag);
+          li.addEventListener('pointerdown', (e) => {
+            if (e.target === handle || handle.contains(e.target)) return;
+            startPointerDrag(e);
+          });
+
+          li.append(handle, label, rank);
+          box.append(li);
+        });
+
+        if (focusKind) {
+          const targetBtn = box.querySelector(`li[data-kind="${focusKind}"] .drag-handle`);
+          targetBtn?.focus();
+        }
+      }
+
+      // 기록(체크포인트) 20줄 렌더링
+      function renderHistory() {
+        const toggle = q('history-toggle');
+        const label = q('history-toggle-label');
+        const panel = q('history-panel');
+        const list = q('history');
+        if (!toggle || !panel || !list) return;
+
+        toggle.setAttribute('aria-expanded', String(state.historyOpen));
+        label.textContent = state.historyOpen
+          ? `기록 목록 닫기 (표본 ${SAMPLE_HISTORY.length}개)`
+          : `기록 목록 열기 (표본 ${SAMPLE_HISTORY.length}개)`;
+        panel.hidden = !state.historyOpen;
+
+        list.replaceChildren(
+          ...SAMPLE_HISTORY.map((h) => {
+            const isCurrent = state.currentCp === h.id;
+            const li = document.createElement('li');
+            li.classList.toggle('current', isCurrent);
+            const text = document.createElement('div');
+            const title = document.createElement('b');
+            title.textContent = h.what;
+            const sub = document.createElement('span');
+            sub.textContent = [
+              h.when,
+              h.who,
+              `바로가기 ${h.count}개`,
+              h.sameRoot ? '' : '따로 시작한 기록',
+            ]
+              .filter(Boolean)
+              .join(' · ');
+            text.append(title, sub);
+            li.append(text);
+            if (isCurrent) {
+              const now = document.createElement('span');
+              now.className = 'now';
+              now.textContent = '지금';
+              li.append(now);
+            } else {
+              const b = document.createElement('button');
+              b.type = 'button';
+              b.className = 'btn ghost small';
+              b.textContent = '이 상태로';
+              b.addEventListener('click', () => {
+                state.currentCp = h.id;
+                renderHistory();
+              });
+              li.append(b);
+            }
+            return li;
+          }),
+        );
+      }
+
+      function updateSwatchSelection(box, presets, val) {
+        if (!box) return;
+        for (const b of box.querySelectorAll('button.swatch')) {
+          b.setAttribute('aria-pressed', String(b.dataset.v.toLowerCase() === val.toLowerCase()));
+        }
+        const custom = box.querySelector('.swatch.custom');
+        if (custom) {
+          const isPreset = presets.some((p) => p[2].toLowerCase() === val.toLowerCase());
+          custom.classList.toggle('chosen', !isPreset);
+          custom.style.setProperty('--sw', val);
+        }
+      }
+
+      function renderCommon() {
+        // 배경 종류
+        const bgTypeSeg = q('bg-type');
+        if (bgTypeSeg) {
+          for (const b of bgTypeSeg.querySelectorAll('button[data-v]')) {
+            b.setAttribute('aria-pressed', String(b.dataset.v === state.bgType));
+          }
+        }
+        if (q('bg-gradient-rows')) q('bg-gradient-rows').hidden = state.bgType !== 'gradient';
+        if (q('bg-color-rows')) q('bg-color-rows').hidden = state.bgType !== 'color';
+        if (q('bg-image-rows')) q('bg-image-rows').hidden = state.bgType !== 'image';
+
+        updateSwatchSelection(q('accent-swatches'), ACCENT_PRESETS, state.accent);
+        updateSwatchSelection(q('bgcolor-swatches'), BGCOLOR_PRESETS, state.bgColor);
+        renderThumbs();
+
+        // 세그먼트
+        for (const seg of root.querySelectorAll('.seg[data-setting]')) {
+          const key = seg.dataset.setting;
+          for (const b of seg.querySelectorAll('button[data-v]')) {
+            b.setAttribute('aria-pressed', String(state[key] === b.dataset.v));
+          }
+        }
+
+        // 가독성
+        if (q('set-legibility')) q('set-legibility').value = state.legibility;
+        if (q('dim-row')) q('dim-row').hidden = state.legibility !== 'dim';
+        if (q('dim-value')) q('dim-value').textContent = state.dim + '%';
+        if (q('legibility-note')) q('legibility-note').textContent = LEGIBILITY_NOTES[state.legibility] || '';
+
+        // 동기화
+        if (q('set-sync')) q('set-sync').checked = state.syncEnabled;
+        if (q('sync-dot')) q('sync-dot').dataset.state = state.syncEnabled ? 'ok' : 'off';
+        if (q('sync-text')) q('sync-text').textContent = state.syncEnabled ? state.syncStatus : '꺼짐';
+        if (q('sync-now')) q('sync-now').disabled = !state.syncEnabled;
+
+        // 새 탭에서 열기
+        if (q('set-newtab')) q('set-newtab').checked = state.openInNewTab;
+
+        renderSearchOrder();
+        renderHistory();
+        if (onStateChange) onStateChange(state);
+      }
+
+      renderCommon();
+      return { renderCommon, renderThumbs };
+    }
+
+    // 현재 설정 요약 문자열 도우미
+    function summaryTexts(state) {
+      const bgMap = { gradient: '그라데이션', color: '단색', image: '내 사진' };
+      const legMap = { auto: '자동 (중앙 음영)', shadow: '그림자 효과', dim: `배경 막 ${state.dim}%`, calm: '중앙 음영', card: '반투명 카드' };
+      const themeMap = { system: '시스템', dark: '어둡게', light: '밝게' };
+      const sizeMap = { sm: '작게', md: '보통', lg: '크게' };
+      return {
+        background: bgMap[state.bgType],
+        legibility: legMap[state.legibility],
+        display: `${themeMap[state.theme]} · ${sizeMap[state.tileSize]} · 1순위 ${SEARCH_GROUP_LABELS[state.searchOrder[0]]}`,
+        sync: state.syncEnabled ? '켜짐 · 18.4KB' : '꺼짐',
+        history: `최근 20개 · ${state.historyOpen ? '열림' : '닫혀 있음'}`,
+        backup: '내보내기 · 불러오기',
+      };
+    }
+
+    const galleryGrid = document.getElementById('gallery-grid');
+    const drawerControllers = [];
+
+    // =========================================================================
+    // 시안 1: 접었다 펴는 묶음 (아코디언)
+    // =========================================================================
+    function mountVariant1() {
+      const state = defaultState();
+      const secs = buildSections('v1');
+      const openGroups = {
+        background: true,
+        legibility: true,
+        display: true,
+        sync: false,
+        history: false,
+        backup: false,
+      };
+
+      const col = document.createElement('article');
+      col.className = 'variant-col';
+      col.innerHTML = `
+        <div class="variant-meta">
+          <h2>시안 1 · 접었다 펴는 묶음 (아코디언)</h2>
+          <p>첫 화면에 자주 쓰는 묶음(배경·이름 가독성·화면 설정)을 펼쳐 두고, 가끔 쓰는 묶음(Google 계정 동기화·기록·백업)은 제목을 1번 눌러 펼칩니다(기록 목록은 그 안에서 1번 더 눌러 총 2번).</p>
+        </div>
+        <div class="drawer-frame drawer">
+          <div class="sheet">
+            <header>
+              <h2>설정</h2>
+              <button class="btn ghost" type="button" data-close aria-label="닫기">닫기</button>
+            </header>
+            <div class="tier-label">자주 쓰는 설정</div>
+            ${['background', 'legibility', 'display'].map((k) => accordionItemHtml(k, secs[k], openGroups[k])).join('')}
+            <div class="tier-label">가끔 쓰는 설정</div>
+            ${['sync', 'history', 'backup'].map((k) => accordionItemHtml(k, secs[k], openGroups[k])).join('')}
+            ${secs.footer}
+          </div>
+        </div>
+      `;
+
+      function accordionItemHtml(key, innerSectionHtml, isOpen) {
+        const titles = {
+          background: '배경',
+          legibility: '이름 가독성',
+          display: '화면 설정',
+          sync: 'Google 계정 동기화',
+          history: '기록',
+          backup: '백업',
+        };
+        // 아코디언 머리글이 이미 묶음 이름을 보여 주므로 안쪽 section의 h3는 시각 중복을 피하기 위해 숨김 처리하되 DOM에는 그대로 유지
+        return `
+          <div class="acc-group" data-acc="${key}">
+            <button type="button" class="acc-header" aria-expanded="${isOpen}">
+              <span class="acc-title-wrap">
+                <span class="acc-title">${titles[key]}</span>
+                <span class="acc-summary" data-acc-sum="${key}"></span>
+              </span>
+              <span class="acc-chev" aria-hidden="true">▼</span>
+            </button>
+            <div class="acc-body" ${isOpen ? '' : 'hidden'}>
+              ${innerSectionHtml}
+            </div>
+          </div>
+        `;
+      }
+
+      // 아코디언 내 section h3는 스크린리더·구조 보존용으로 두고 아코디언 제목과 겹치지 않게 정리
+      for (const h3 of col.querySelectorAll('.acc-body > section > h3')) {
+        h3.style.display = 'none';
+      }
+      for (const sec of col.querySelectorAll('.acc-body > section')) {
+        sec.style.padding = '0';
+        sec.style.borderTop = '0';
+      }
+
+      function updateSummaries() {
+        const sums = summaryTexts(state);
+        for (const [k, text] of Object.entries(sums)) {
+          const el = col.querySelector(`[data-acc-sum="${k}"]`);
+          if (el) el.textContent = text;
+        }
+      }
+
+      for (const grp of col.querySelectorAll('.acc-group')) {
+        const key = grp.dataset.acc;
+        const btn = grp.querySelector('.acc-header');
+        const body = grp.querySelector('.acc-body');
+        btn.addEventListener('click', () => {
+          openGroups[key] = !openGroups[key];
+          btn.setAttribute('aria-expanded', String(openGroups[key]));
+          body.hidden = !openGroups[key];
+        });
+      }
+
+      const ctrl = wireCommonControls(col, state, updateSummaries);
+      drawerControllers.push(ctrl);
+      galleryGrid.append(col);
+    }
+
+    mountVariant1();
+
+    // =========================================================================
+    // 시안 2: 첫 화면은 목록, 누르면 하위 화면으로 들어가는 2단계 구조
+    // =========================================================================
+    function mountVariant2() {
+      const state = defaultState();
+      const secs = buildSections('v2');
+      const titles = {
+        background: '배경',
+        legibility: '이름 가독성',
+        display: '화면 설정',
+        sync: 'Google 계정 동기화',
+        history: '기록',
+        backup: '백업',
+      };
+
+      const col = document.createElement('article');
+      col.className = 'variant-col';
+      col.innerHTML = `
+        <div class="variant-meta">
+          <h2>시안 2 · 첫 화면 목록 + 하위 화면 (2단계)</h2>
+          <p>첫 화면에 자주 쓰는 묶음(배경·이름 가독성·화면 설정)과 가끔 쓰는 묶음(동기화·기록·백업)의 요약 목록을 두고, 어느 묶음이든 1번 눌러 하위 화면으로 들어갑니다(기록 목록은 하위 화면에서 1번 더 눌러 총 2번).</p>
+        </div>
+        <div class="drawer-frame drawer">
+          <div class="sheet">
+            <div data-drill="home" class="drill-stage">
+              <header>
+                <h2>설정</h2>
+                <button class="btn ghost" type="button" data-close aria-label="닫기">닫기</button>
+              </header>
+              <div class="tier-label">자주 쓰는 설정</div>
+              <div class="drill-list">
+                ${['background', 'legibility', 'display'].map((k) => `
+                  <button type="button" class="drill-item" data-goto="${k}">
+                    <span class="drill-item-text">
+                      <b>${titles[k]}</b>
+                      <span data-drill-sum="${k}"></span>
+                    </span>
+                    <span class="drill-arrow" aria-hidden="true">›</span>
+                  </button>
+                `).join('')}
+              </div>
+              <div class="tier-label">가끔 쓰는 설정</div>
+              <div class="drill-list">
+                ${['sync', 'history', 'backup'].map((k) => `
+                  <button type="button" class="drill-item" data-goto="${k}">
+                    <span class="drill-item-text">
+                      <b>${titles[k]}</b>
+                      <span data-drill-sum="${k}"></span>
+                    </span>
+                    <span class="drill-arrow" aria-hidden="true">›</span>
+                  </button>
+                `).join('')}
+              </div>
+              ${secs.footer}
+            </div>
+
+            <div data-drill="sub" class="drill-stage" hidden>
+              <div class="drill-subhead">
+                <button type="button" class="btn ghost drill-back" data-drill-back>← 설정</button>
+                <h3 data-drill-title>배경</h3>
+                <button class="btn ghost" type="button" data-close aria-label="닫기">닫기</button>
+              </div>
+              <div data-drill-pages>
+                ${['background', 'legibility', 'display', 'sync', 'history', 'backup'].map((k) => `
+                  <div data-drill-page="${k}" hidden>${secs[k]}</div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 하위 화면 상단 막대에 분류 제목이 있으므로 안쪽 section 테두리·중복 제목 정리
+      for (const sec of col.querySelectorAll('[data-drill-page] > section')) {
+        sec.style.padding = '0';
+        sec.style.borderTop = '0';
+      }
+
+      const homeView = col.querySelector('[data-drill="home"]');
+      const subView = col.querySelector('[data-drill="sub"]');
+      const subTitle = col.querySelector('[data-drill-title]');
+
+      function openSubPage(key) {
+        homeView.hidden = true;
+        subView.hidden = false;
+        subTitle.textContent = titles[key];
+        for (const p of col.querySelectorAll('[data-drill-page]')) {
+          p.hidden = p.dataset.drillPage !== key;
+        }
+      }
+
+      function backToHome() {
+        subView.hidden = true;
+        homeView.hidden = false;
+      }
+
+      for (const btn of col.querySelectorAll('[data-goto]')) {
+        btn.addEventListener('click', () => openSubPage(btn.dataset.goto));
+      }
+      col.querySelector('[data-drill-back]').addEventListener('click', backToHome);
+
+      function updateSummaries() {
+        const sums = summaryTexts(state);
+        for (const [k, text] of Object.entries(sums)) {
+          const el = col.querySelector(`[data-drill-sum="${k}"]`);
+          if (el) el.textContent = text;
+        }
+      }
+
+      const ctrl = wireCommonControls(col, state, updateSummaries);
+      drawerControllers.push(ctrl);
+      galleryGrid.append(col);
+    }
+
+    mountVariant2();
+
+    // =========================================================================
+    // 시안 3: 위쪽 탭 (모양·화면 / 계정·데이터)
+    // =========================================================================
+    function mountVariant3() {
+      const state = defaultState();
+      const secs = buildSections('v3');
+
+      const col = document.createElement('article');
+      col.className = 'variant-col';
+      col.innerHTML = `
+        <div class="variant-meta">
+          <h2>시안 3 · 위쪽 탭 (자주 쓰는 탭 / 가끔 쓰는 탭)</h2>
+          <p>첫 화면('모양·화면' 탭)에 배경·이름 가독성·화면 설정을 바로 펼쳐 두고, 동기화·기록·백업은 위쪽 '계정·데이터' 탭을 1번 눌러 전환합니다(기록 목록은 그 안에서 1번 더 눌러 총 2번).</p>
+        </div>
+        <div class="drawer-frame drawer">
+          <div class="sheet">
+            <header>
+              <h2>설정</h2>
+              <button class="btn ghost" type="button" data-close aria-label="닫기">닫기</button>
+            </header>
+            <div class="drawer-tabs" role="tablist" aria-label="설정 묶음">
+              <button type="button" class="drawer-tab" role="tab" data-tab="frequent" aria-selected="true">모양·화면 (자주 씀)</button>
+              <button type="button" class="drawer-tab" role="tab" data-tab="infrequent" aria-selected="false">계정·데이터 (가끔 씀)</button>
+            </div>
+            <div data-tabpanel="frequent" role="tabpanel">
+              ${secs.background}
+              ${secs.legibility}
+              ${secs.display}
+            </div>
+            <div data-tabpanel="infrequent" role="tabpanel" hidden>
+              ${secs.sync}
+              ${secs.history}
+              ${secs.backup}
+            </div>
+            ${secs.footer}
+          </div>
+        </div>
+      `;
+
+      for (const tabBtn of col.querySelectorAll('.drawer-tab')) {
+        tabBtn.addEventListener('click', () => {
+          const target = tabBtn.dataset.tab;
+          for (const b of col.querySelectorAll('.drawer-tab')) {
+            b.setAttribute('aria-selected', String(b.dataset.tab === target));
+          }
+          for (const panel of col.querySelectorAll('[data-tabpanel]')) {
+            panel.hidden = panel.dataset.tabpanel !== target;
+          }
+        });
+      }
+
+      const ctrl = wireCommonControls(col, state);
+      drawerControllers.push(ctrl);
+      galleryGrid.append(col);
+    }
+
+    mountVariant3();
+
+    // =========================================================================
+    // 시안 4: 서랍 안 왼쪽 분류 목록 (2열 구조)
+    // =========================================================================
+    function mountVariant4() {
+      const state = defaultState();
+      const secs = buildSections('v4');
+      const titles = {
+        background: '배경',
+        legibility: '이름 가독성',
+        display: '화면 설정',
+        sync: 'Google 계정 동기화',
+        history: '기록',
+        backup: '백업',
+      };
+
+      const col = document.createElement('article');
+      col.className = 'variant-col';
+      col.innerHTML = `
+        <div class="variant-meta">
+          <h2>시안 4 · 서랍 안 왼쪽 분류 목록</h2>
+          <p>첫 화면에 왼쪽 분류 목록(자주 쓰는 3개·가끔 쓰는 3개)과 오른쪽 '배경' 설정을 두고, 다른 다섯 분류는 왼쪽 항목을 1번 눌러 전환합니다(기록 목록은 '기록'에서 1번 더 눌러 총 2번).</p>
+        </div>
+        <div class="drawer-frame drawer split-drawer">
+          <div class="sheet">
+            <header class="split-top">
+              <h2>설정</h2>
+              <button class="btn ghost" type="button" data-close aria-label="닫기">닫기</button>
+            </header>
+            <div class="split-body">
+              <nav class="split-nav" aria-label="설정 분류">
+                <div class="tier-label">자주 씀</div>
+                ${['background', 'legibility', 'display'].map((k, idx) => `
+                  <button type="button" class="split-nav-btn" data-split-nav="${k}" aria-selected="${idx === 0}">${titles[k]}</button>
+                `).join('')}
+                <div class="tier-label">가끔 씀</div>
+                ${['sync', 'history', 'backup'].map((k) => `
+                  <button type="button" class="split-nav-btn" data-split-nav="${k}" aria-selected="false">${titles[k]}</button>
+                `).join('')}
+                <div class="split-nav-foot">
+                  <button class="btn ghost small" type="button" data-role="intro-again">처음 실행 안내 다시 보기</button>
+                  <div class="version" data-role="version">Tileshelf 0.10.0</div>
+                </div>
+              </nav>
+              <div class="split-content">
+                ${['background', 'legibility', 'display', 'sync', 'history', 'backup'].map((k, idx) => `
+                  <div data-split-pane="${k}" ${idx === 0 ? '' : 'hidden'}>${secs[k]}</div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      for (const navBtn of col.querySelectorAll('[data-split-nav]')) {
+        navBtn.addEventListener('click', () => {
+          const target = navBtn.dataset.splitNav;
+          for (const b of col.querySelectorAll('[data-split-nav]')) {
+            b.setAttribute('aria-selected', String(b.dataset.splitNav === target));
+          }
+          for (const pane of col.querySelectorAll('[data-split-pane]')) {
+            pane.hidden = pane.dataset.splitPane !== target;
+          }
+        });
+      }
+
+      const ctrl = wireCommonControls(col, state);
+      drawerControllers.push(ctrl);
+      galleryGrid.append(col);
+    }
+
+    mountVariant4();
+
+    // ---- 페이지 맨 위 어두운·밝은 테마 전환 ----
+    document.getElementById('page-theme-seg').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-v]');
+      if (!b) return;
+      const theme = b.dataset.v;
+      document.documentElement.dataset.theme = theme;
+      for (const btn of document.querySelectorAll('#page-theme-seg button[data-v]')) {
+        btn.setAttribute('aria-pressed', String(btn.dataset.v === theme));
+      }
+      for (const ctrl of drawerControllers) {
+        ctrl.renderThumbs();
+      }
+    });
+  </script>
+</body>
+</html>

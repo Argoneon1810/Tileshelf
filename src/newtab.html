@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <title>새 탭</title>
+  <link rel="stylesheet" href="css/newtab.css">
+  <script src="js/boot.js"></script>
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <div id="bg" data-fit="cover" aria-hidden="true"><canvas class="main"></canvas><canvas class="fade" hidden></canvas><div class="calm-shade"></div><div class="grain"></div></div>
+
+  <div class="top-actions">
+    <button id="settings-btn" class="icon-btn glass" type="button" aria-label="설정" data-i18n-aria-label="ariaSettings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      <span class="status-dot" data-state="off" title="동기화에 문제가 발생했습니다" data-i18n-title="syncProblemDot"></span>
+    </button>
+  </div>
+
+  <main class="center">
+    <form id="search" class="search glass" role="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="바로가기 찾기 · 웹 검색 · 주소 이동" data-i18n-placeholder="searchPlaceholder" autocomplete="off" spellcheck="false" aria-label="검색" data-i18n-aria-label="ariaSearch">
+    </form>
+    <div id="results" class="results glass" hidden></div>
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" hidden>
+      <p data-i18n="emptyGuide">아직 바로가기가 없습니다. 다른 기기에서 쓰던 바로가기는 동기화가 켜져 있으면 잠시 뒤 자동으로 들어옵니다.</p>
+      <div class="row">
+        <button id="empty-add" class="btn primary" type="button" data-i18n="btnAddShortcut">바로가기 추가</button>
+        <button id="empty-import" class="btn" type="button" data-i18n="btnImportBackup">백업 파일 불러오기</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 바로가기 추가·편집 -->
+  <dialog id="edit">
+    <form class="sheet" method="dialog">
+      <h2 id="edit-title" data-i18n="editTitleAdd">바로가기 추가</h2>
+      <div class="icon-pick">
+        <div class="ic" id="edit-icon"></div>
+        <div>
+          <div class="row">
+            <button id="edit-icon-pick" class="btn" type="button" data-i18n="btnPickImage">이미지 선택</button>
+            <button id="edit-icon-auto" class="btn ghost" type="button" data-i18n="btnAutoIcon">기본 아이콘</button>
+          </div>
+        </div>
+        <input id="edit-icon-file" type="file" accept="image/*" hidden>
+      </div>
+      <label class="field"><span data-i18n="fieldName">이름</span><input id="edit-name" type="text" placeholder="비워 두면 사이트 주소(도메인)로 자동 입력" data-i18n-placeholder="editNamePlaceholder"></label>
+      <label class="field"><span data-i18n="fieldUrl">주소</span><input id="edit-url" type="text" placeholder="example.com" required></label>
+      <div id="edit-error" class="error" role="alert"></div>
+      <div class="actions">
+        <button id="edit-delete" class="btn danger" type="button" data-i18n="btnDelete">삭제</button>
+        <div class="row">
+          <button class="btn ghost" type="button" data-close data-i18n="btnCancel">취소</button>
+          <button class="btn primary" type="submit" data-i18n="btnSave">저장</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 백업 파일 불러오기 확인 -->
+  <dialog id="import">
+    <form class="sheet" method="dialog">
+      <h2 data-i18n="importDialogTitle">백업 파일 불러오기</h2>
+      <p id="import-summary"></p>
+      <div class="actions">
+        <button class="btn ghost" type="button" data-close data-i18n="btnCancel">취소</button>
+        <div class="row">
+          <button id="import-append" class="btn" type="button" data-i18n="btnImportAppend">기존 목록에 추가</button>
+          <button id="import-replace" class="btn primary" type="button" data-i18n="btnImportReplace">전체 덮어쓰기</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 사진을 고르기 전 안내: 고른 뒤나 PC를 바꾼 뒤에 알게 되지 않도록 -->
+  <dialog id="photo-notice">
+    <form class="sheet" method="dialog">
+      <h2 data-i18n="photoNoticeTitle">배경 사진은 이 기기에만 저장됩니다</h2>
+      <p data-i18n="photoNoticeBody1">Google 계정 동기화 용량 한도(100KB) 때문에 사진은 다른 기기로 넘어가지 않습니다. 사진이 없는 기기에서는 그라데이션 배경이 대신 보입니다.</p>
+      <p data-i18n="photoNoticeBody2">다른 기기에서도 같은 사진을 쓰려면 그 기기에서 사진을 따로 고르거나 백업 파일로 옮기세요.</p>
+      <label class="check"><input id="photo-notice-skip" type="checkbox"> <span data-i18n="photoNoticeSkip">다음부터 이 안내 건너뛰기</span></label>
+      <div class="actions">
+        <button class="btn ghost" type="button" data-close data-i18n="btnCancel">취소</button>
+        <button id="photo-notice-ok" class="btn primary" type="button" data-i18n="btnPickPhoto">사진 선택</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 처음 실행 안내: 고르는 대로 뒤 화면이 바로 바뀌도록 배경을 가리지 않는 작은 판으로 띄운다 -->
+  <dialog id="intro" class="intro">
+    <div class="sheet">
+      <div class="intro-dots" id="intro-dots" aria-hidden="true"></div>
+      <section data-page="welcome">
+        <h2 data-i18n="introWelcomeTitle">처음이신가요, 쓰던 설정이 있나요?</h2>
+        <div class="choices" id="intro-path">
+          <button type="button" data-v="new"><b data-i18n="introNewTitle">처음입니다</b><span data-i18n="introNewDesc">뒤 화면을 보면서 테마와 배경, 이름 가독성을 차례로 고릅니다.</span></button>
+          <button type="button" data-v="existing"><b data-i18n="introExistingTitle">다른 기기에서 쓰던 설정이나 백업 파일이 있습니다</b><span data-i18n="introExistingDesc">Google 계정 동기화나 백업 파일로 쓰던 바로가기와 설정을 가져옵니다.</span></button>
+        </div>
+      </section>
+      <section data-page="theme">
+        <h2 data-i18n="labelTheme">테마</h2>
+        <p data-i18n="introThemeDesc">검색창과 대화상자, 그라데이션 배경의 밝기를 정합니다. 고르는 즉시 뒤 화면에 적용됩니다.</p>
+        <div class="setting">
+          <span data-i18n="labelTheme">테마</span>
+          <div class="seg" data-intro-setting="theme">
+            <button type="button" data-v="system" data-i18n="themeSystem">시스템</button><button type="button" data-v="dark" data-i18n="themeDark">어둡게</button><button type="button" data-v="light" data-i18n="themeLight">밝게</button>
+          </div>
+        </div>
+      </section>
+      <section data-page="bgtype">
+        <h2 data-i18n="pageBackground">배경</h2>
+        <p data-i18n="introBgTypeDesc">배경 종류를 먼저 고르고, 다음 단계에서 세부 모양을 정합니다.</p>
+        <div class="choices" id="intro-bgtype">
+          <button type="button" data-v="gradient"><b data-i18n="bgGradient">그라데이션</b><span data-i18n="introBgGradientDesc">강조색과 구도로 그리는 배경입니다. 다른 기기에도 그대로 동기화됩니다.</span></button>
+          <button type="button" data-v="color"><b data-i18n="bgColor">단색</b><span data-i18n="introBgColorDesc">고른 한 가지 색으로 채웁니다. 다른 기기에도 그대로 동기화됩니다.</span></button>
+          <button type="button" data-v="image"><b data-i18n="bgImage">내 사진</b><span data-i18n="introBgImageDesc">내 기기의 이미지 파일을 배경으로 씁니다. 사진은 이 기기에만 저장됩니다.</span></button>
+        </div>
+      </section>
+      <section data-page="detail" data-bgtype="gradient">
+        <h2 data-i18n="bgGradient">그라데이션</h2>
+        <div class="setting"><span data-i18n="labelAccent">강조색</span></div>
+        <div id="intro-accent"></div>
+        <div class="setting">
+          <span data-i18n="labelComposition">구도</span>
+          <button id="intro-more" class="btn ghost small" type="button" data-i18n="btnMoreVariants">다른 변형 보기</button>
+        </div>
+        <div id="intro-thumbs"></div>
+        <div class="setting">
+          <span data-i18n="labelSlowMotion">천천히 움직이기</span>
+          <label class="switch"><input id="intro-motion" type="checkbox"><i></i></label>
+        </div>
+        <p class="note" id="intro-motion-hint"></p>
+      </section>
+      <section data-page="detail" data-bgtype="color">
+        <h2 data-i18n="bgColor">단색</h2>
+        <div id="intro-bgcolor"></div>
+        <p class="note" data-i18n="noteColorContrast">바로가기 이름 글자색은 배경 밝기에 맞춰 흰색이나 어두운 색으로 자동 전환됩니다.</p>
+      </section>
+      <section data-page="detail" data-bgtype="image">
+        <h2 data-i18n="bgImage">내 사진</h2>
+        <p id="intro-photo-origin" data-i18n="introPhotoOrigin">이 기기에 이미 저장되어 있던 사진입니다(이전에 골랐거나 백업 파일에서 불러온 사진).</p>
+        <div class="thumb" id="intro-photo-thumb"></div>
+        <div class="row" style="margin-top:10px">
+          <button id="intro-photo" class="btn small" type="button" data-i18n="btnPickPhoto">사진 선택</button>
+        </div>
+        <p class="note" data-i18n="notePhotoLocal">사진은 이 기기에만 저장되며 Google 계정으로는 동기화되지 않습니다.</p>
+      </section>
+      <section data-page="legibility">
+        <h2 data-i18n="pageLegibility">이름 가독성</h2>
+        <p data-i18n="introLegibilityDesc">배경 위에서 바로가기 이름이 잘 읽히도록 처리하는 방식입니다.</p>
+        <div class="choices" data-intro-setting="legibility" id="intro-legibility"></div>
+      </section>
+      <section data-page="existing">
+        <h2 data-i18n="introImportHeading">기존 설정 가져오기</h2>
+        <h3 data-i18n="pageSync">Google 계정 동기화</h3>
+        <p data-i18n="introSyncDesc">다른 기기에서 쓰던 Google 계정으로 Chrome 동기화가 켜져 있다면 잠시 뒤 바로가기와 설정이 자동으로 들어옵니다(배경 사진 제외).</p>
+        <div class="sync-line"><span class="status-dot" id="intro-sync-dot"></span><span id="intro-sync-text"></span></div>
+        <div class="row"><button id="intro-sync-now" class="btn small" type="button" data-i18n="btnCheckNow">지금 확인</button></div>
+        <h3 data-i18n="labelBackupFile">백업 파일</h3>
+        <p data-i18n="introBackupDesc">설정 → 백업에서 내보낸 백업 파일이 있다면 불러오세요. 배경 사진까지 함께 복원됩니다.</p>
+        <button id="intro-import" class="btn" type="button" data-i18n="btnImportBackup">백업 파일 불러오기</button>
+      </section>
+      <div class="actions">
+        <button id="intro-skip" class="btn ghost" type="button" data-i18n="btnSkip">건너뛰기</button>
+        <div class="row">
+          <button id="intro-prev" class="btn" type="button" data-i18n="btnPrev">이전</button>
+          <button id="intro-next" class="btn primary" type="button" data-i18n="btnNext">다음</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 설정 -->
+  <dialog id="settings" class="drawer">
+    <div class="sheet">
+      <div id="settings-home" data-drill="home" class="drill-stage">
+        <header>
+          <h2 data-i18n="ariaSettings">설정</h2>
+          <button class="btn ghost" type="button" data-close aria-label="닫기" data-i18n="btnClose" data-i18n-aria-label="btnClose">닫기</button>
+        </header>
+
+        <div class="tier-label" data-i18n="tierFrequent">자주 쓰는 설정</div>
+        <div class="drill-list">
+          <button type="button" class="drill-item" data-goto="background">
+            <span class="drill-item-text">
+              <b data-i18n="pageBackground">배경</b>
+              <span data-drill-sum="background"></span>
+            </span>
+            <span class="drill-arrow" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="drill-item" data-goto="legibility">
+            <span class="drill-item-text">
+              <b data-i18n="pageLegibility">이름 가독성</b>
+              <span data-drill-sum="legibility"></span>
+            </span>
+            <span class="drill-arrow" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="drill-item" data-goto="display">
+            <span class="drill-item-text">
+              <b data-i18n="pageDisplay">화면 설정</b>
+              <span data-drill-sum="display"></span>
+            </span>
+            <span class="drill-arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+
+        <div class="tier-label" data-i18n="tierOccasional">가끔 쓰는 설정</div>
+        <div class="drill-list">
+          <button type="button" class="drill-item" data-goto="sync">
+            <span class="drill-item-text">
+              <b data-i18n="pageSync">Google 계정 동기화</b>
+              <span data-drill-sum="sync"></span>
+            </span>
+            <span class="drill-arrow" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="drill-item" data-goto="history">
+            <span class="drill-item-text">
+              <b data-i18n="pageHistory">기록</b>
+              <span data-drill-sum="history"></span>
+            </span>
+            <span class="drill-arrow" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="drill-item" data-goto="backup">
+            <span class="drill-item-text">
+              <b data-i18n="pageBackup">백업</b>
+              <span data-drill-sum="backup"></span>
+            </span>
+            <span class="drill-arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+
+        <div class="row" style="margin-top: 12px"><button id="intro-again" class="btn ghost small" type="button" data-i18n="btnReplayIntro">처음 실행 안내 다시 보기</button></div>
+        <div class="version" id="version"></div>
+        <div class="legal-note" id="legal-note" data-i18n="settingsLegalFooter">GPL-3.0-or-later · 보증 없이 '있는 그대로(AS IS)' 제공됩니다. Google·Chrome은 Google LLC의 상표이며 본 확장과 제휴 관계가 아닙니다.</div>
+      </div>
+
+      <div id="settings-sub" data-drill="sub" class="drill-stage" hidden>
+        <div class="drill-subhead">
+          <button type="button" class="btn ghost drill-back" id="drill-back" data-drill-back data-i18n="btnBackToSettings">← 설정</button>
+          <h3 id="drill-title" data-drill-title data-i18n="pageBackground">배경</h3>
+          <button class="btn ghost" type="button" data-close aria-label="닫기" data-i18n="btnClose" data-i18n-aria-label="btnClose">닫기</button>
+        </div>
+
+        <div data-drill-pages>
+          <div data-drill-page="background" hidden>
+            <section id="sec-background">
+              <h3 data-i18n="pageBackground">배경</h3>
+              <div class="setting">
+                <span data-i18n="labelBgType">배경 종류</span>
+                <div class="seg" id="bg-type">
+                  <button type="button" data-v="gradient" data-i18n="bgGradient">그라데이션</button><button type="button" data-v="color" data-i18n="bgColor">단색</button><button type="button" data-v="image" data-i18n="bgImage">내 사진</button>
+                </div>
+              </div>
+              <div id="bg-color-rows">
+                <div class="setting"><span data-i18n="labelBgColor">배경색</span></div>
+                <div id="bgcolor-swatches"></div>
+                <p class="note" data-i18n="noteColorContrast">바로가기 이름 글자색은 배경 밝기에 맞춰 흰색이나 어두운 색으로 자동 전환됩니다.</p>
+              </div>
+              <div id="bg-gradient-rows">
+                <div class="setting">
+                  <span data-i18n="labelMotion">움직임</span>
+                  <div class="seg" data-setting="bgMotion">
+                    <button type="button" data-v="static" data-i18n="motionStatic">정지</button><button type="button" data-v="motion" data-i18n="motionFlow">흐르기</button>
+                  </div>
+                </div>
+                <p class="note" id="motion-note" hidden></p>
+                <div class="setting"><span data-i18n="labelAccent">강조색</span></div>
+                <div id="accent-swatches"></div>
+                <div class="setting">
+                  <span data-i18n="labelComposition">구도</span>
+                  <button id="bg-variants" class="btn ghost small" type="button" data-i18n="btnMoreVariants">다른 변형 보기</button>
+                </div>
+                <div id="bg-thumbs"></div>
+                <p class="note" data-i18n="noteGradientSync">테마(어둡게·밝게)와 강조색, 구도에 따라 배경이 달라지며, 다른 기기에도 그대로 동기화됩니다.</p>
+              </div>
+              <div id="bg-image-rows">
+                <div class="thumb" id="bg-thumb"></div>
+                <div class="row" style="margin-top:10px">
+                  <button id="bg-pick" class="btn" type="button" data-i18n="btnChangePhoto">사진 변경</button>
+                </div>
+                <input id="bg-file" type="file" accept="image/*" hidden>
+                <p class="note warn" id="bg-missing" data-i18n="notePhotoMissing" hidden>다른 기기에서 '내 사진'으로 설정했지만 사진은 동기화되지 않아 그라데이션이 대신 보입니다. 이 기기에서 쓸 사진을 고르거나 백업 파일을 불러오세요.</p>
+                <p class="note" data-i18n="notePhotoLocal">사진은 이 기기에만 저장되며 Google 계정으로는 동기화되지 않습니다.</p>
+                <label class="field" style="margin-top:12px"><span data-i18n="labelFit">맞춤</span>
+                  <select id="set-bgfit">
+                    <option value="cover" data-i18n="fitCover">화면 채우기</option>
+                    <option value="contain" data-i18n="fitContain">화면에 맞추기</option>
+                    <option value="center" data-i18n="fitCenter">가운데 맞춤 (원본 크기)</option>
+                    <option value="repeat" data-i18n="fitRepeat">바둑판식 배열</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <div data-drill-page="legibility" hidden>
+            <section id="sec-legibility">
+              <h3 data-i18n="pageLegibility">이름 가독성</h3>
+              <label class="field"><span data-i18n="labelLegibilityEffect">가독성 효과</span>
+                <select id="set-legibility">
+                  <option value="shadow" data-i18n="legShadow">그림자 효과</option>
+                  <option value="dim" data-i18n="legDim">배경 막</option>
+                  <option value="card" data-i18n="legCard">반투명 카드</option>
+                </select>
+              </label>
+              <div class="setting" id="dim-row">
+                <span><span data-i18n="labelDimStrength">농도 조절</span> <b id="dim-value"></b></span>
+                <input id="set-dim" type="range" min="0" max="70" step="1">
+              </div>
+              <p class="note" id="legibility-note"></p>
+            </section>
+          </div>
+
+          <div data-drill-page="display" hidden>
+            <section id="sec-display">
+              <h3 data-i18n="pageDisplay">화면 설정</h3>
+              <div class="setting">
+                <span data-i18n="labelTheme">테마</span>
+                <div class="seg" data-setting="theme">
+                  <button type="button" data-v="system" data-i18n="themeSystem">시스템</button><button type="button" data-v="dark" data-i18n="themeDark">어둡게</button><button type="button" data-v="light" data-i18n="themeLight">밝게</button>
+                </div>
+              </div>
+              <div class="setting">
+                <span data-i18n="labelTileSize">바로가기 크기</span>
+                <div class="seg" data-setting="tileSize">
+                  <button type="button" data-v="sm" data-i18n="sizeSm">작게</button><button type="button" data-v="md" data-i18n="sizeMd">보통</button><button type="button" data-v="lg" data-i18n="sizeLg">크게</button>
+                </div>
+              </div>
+              <div class="setting">
+                <span data-i18n="labelOpenNewTab">새 탭에서 바로가기 열기</span>
+                <label class="switch"><input id="set-newtab" type="checkbox"><i></i></label>
+              </div>
+              <div class="setting">
+                <span data-i18n="labelSearchOrder">검색 결과 순서</span>
+              </div>
+              <ol class="search-order draggable-order" id="search-order" aria-label="검색 결과 순서" data-i18n-aria-label="labelSearchOrder"></ol>
+              <p class="note" data-i18n="noteSearchOrder">맨 위 항목이 검색창에서 Enter를 두 번 눌렀을 때 바로 실행됩니다.</p>
+            </section>
+          </div>
+
+          <div data-drill-page="sync" hidden>
+            <section id="sec-sync">
+              <h3 data-i18n="pageSync">Google 계정 동기화</h3>
+              <div class="setting">
+                <span data-i18n="labelAutoSync">같은 계정의 다른 기기와 자동 동기화</span>
+                <label class="switch"><input id="set-sync" type="checkbox"><i></i></label>
+              </div>
+              <div class="sync-line"><span class="status-dot" id="sync-dot"></span><span id="sync-text"></span></div>
+              <div class="meter" id="sync-meter"><i></i></div>
+              <div class="note" id="sync-usage"></div>
+              <div class="row" style="margin-top:10px">
+                <button id="sync-now" class="btn" type="button" data-i18n="btnSyncNow">지금 동기화</button>
+              </div>
+              <p class="note" data-i18n="noteSyncScope">바로가기와 직접 넣은 아이콘, 배경·화면 설정이 동기화됩니다. 내 사진 배경은 용량 한도 때문에 이 기기에만 저장됩니다.</p>
+              <p class="note warn" id="sync-icons-note" data-i18n="noteSyncIconsOmitted" hidden>직접 넣은 아이콘이 많아 계정 용량(100KB)이 모자랍니다. 일부 아이콘 그림은 올리지 못해, 그 그림이 없는 기기에서는 사이트 기본 아이콘으로 보입니다.</p>
+              <p class="note warn" id="sync-trimmed-note" data-i18n="noteSyncTrimmed" hidden>계정 용량(100KB)이 모자라 이 기기의 오래된 기록 일부를 덜어 냈습니다.</p>
+            </section>
+          </div>
+
+          <div data-drill-page="history" hidden>
+            <section id="sec-history">
+              <h3 data-i18n="pageHistory">기록</h3>
+              <p class="note" data-i18n="noteHistoryDesc">바로가기나 설정을 바꿀 때마다 기록이 남습니다. 기기마다 최근 100개가 계정에 남아, 어느 기기에서든 그때 상태로 되돌릴 수 있습니다. 배경 사진은 기록에 들어가지 않습니다.</p>
+              <div class="history-disclosure">
+                <button type="button" class="history-toggle" id="history-toggle" data-role="history-toggle" aria-expanded="false">
+                  <span id="history-toggle-label" data-role="history-toggle-label" data-i18n="historyOpenLabel">기록 목록 열기</span>
+                  <span class="chev" aria-hidden="true">▼</span>
+                </button>
+                <div class="history-panel" id="history-panel" data-role="history-panel" hidden>
+                  <ol class="history" id="history"></ol>
+                  <div class="row"><button id="history-more" class="btn ghost small" type="button" data-i18n="btnShowMore" hidden>더 보기</button></div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div data-drill-page="backup" hidden>
+            <section id="sec-backup">
+              <h3 data-i18n="pageBackup">백업</h3>
+              <div class="row">
+                <button id="backup-export" class="btn" type="button" data-i18n="btnExportBackup">백업 파일 내보내기</button>
+                <button id="backup-import" class="btn" type="button" data-i18n="btnImportBackup">백업 파일 불러오기</button>
+              </div>
+              <p class="note" data-i18n="noteBackupScope">백업 파일에는 바로가기와 아이콘, 화면 설정, 배경 사진이 모두 담깁니다.</p>
+              <p class="note" id="backup-safety-note" data-i18n="backupSafetyNote">중요한 바로가기는 주기적으로 백업 파일을 내보내 따로 보관하세요. 백업 파일(.json)은 암호화되지 않은 일반 텍스트로 바로가기 주소와 배경 사진이 그대로 담기므로 외부 공유나 공용 기기 보관에 주의하세요.</p>
+              <input id="backup-file" type="file" accept=".json,application/json" hidden>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</body>
+</html>
