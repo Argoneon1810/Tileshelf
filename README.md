@@ -9,7 +9,7 @@
 별도 서비스 가입이나 외부 서버 없이 바로가기·아이콘·화면 설정을 기기 간 자동 동기화하고,<br/>
 기기별 100단계 변경 기록과 배경 사진 단일 파일(`.json`) 백업, 통합 검색창을 한 화면에 담았습니다.
 
-[**한국어**](README.md) · [English](README.en.md) · [**최신 릴리스 받기 (`v1.0.0` ZIP)**](https://github.com/Argoneon1810/Tileshelf/releases/latest) · [바뀐 내역](CHANGELOG.md) · [개인정보처리방침](PRIVACY.md) · [버그 제보](https://github.com/Argoneon1810/Tileshelf/issues)
+[**한국어**](README.md) · [English](README.en.md) · [**최신 릴리스 받기 (`v1.0.0` ZIP)**](https://github.com/Argoneon1810/Tileshelf/releases/latest) · [Chrome 웹 스토어](https://chromewebstore.google.com/detail/tileshelf/gpcpfkhbghjbcoechkpdfcjokolhfnep) · [바뀐 내역](CHANGELOG.md) · [개인정보처리방침](PRIVACY.md) · [버그 제보](https://github.com/Argoneon1810/Tileshelf/issues)
 
 </div>
 
@@ -28,7 +28,7 @@
 
 ## 설치하기
 
-### 1. 공식 릴리스 ZIP으로 바로 설치 (빌드 도구 불필요)
+### 1. 공식 릴리스 ZIP으로 바로 설치 (빌드 도구 불필요 · 스토어 심사 대기 중 권장)
 
 `Node.js`나 개발 도구를 설치하지 않고 공식 배포 묶음을 그대로 불러올 수 있습니다.
 
@@ -39,7 +39,7 @@
 
 ### 2. Chrome 웹 스토어
 
-- Chrome 웹 스토어 등록 심사 준비 및 진행 중입니다(심사 완료 후 스토어 직행 링크가 이곳에 추가됩니다).
+- [Chrome 웹 스토어의 Tileshelf 페이지](https://chromewebstore.google.com/detail/tileshelf/gpcpfkhbghjbcoechkpdfcjokolhfnep) *(현재 최초 게시 수동 검토 진행 중입니다. 검토가 끝나는 대로 원클릭 설치와 자동 업데이트가 열립니다.)*
 - 수동 설치판에서 스토어 판으로 옮길 때는 확장 ID가 달라지므로, 기존 판의 **설정 → 백업 → 백업 파일 내보내기**로 `.json` 파일을 먼저 저장한 뒤 새 판에서 불러오세요.
 
 <details>

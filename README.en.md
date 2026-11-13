@@ -9,7 +9,7 @@
 Sync shortcuts, custom icons, and appearance across devices via Chrome Sync,<br/>
 roll back with 100-step per-device version history, search everything from one bar, and back up photos in a single `.json` file.
 
-[한국어](README.md) · [**English**](README.en.md) · [**Download Latest Release (`v1.0.0` ZIP)**](https://github.com/Argoneon1810/Tileshelf/releases/latest) · [Changelog](CHANGELOG.md) · [Privacy Policy](PRIVACY.md) · [Report an Issue](https://github.com/Argoneon1810/Tileshelf/issues)
+[한국어](README.md) · [**English**](README.en.md) · [**Download Latest Release (`v1.0.0` ZIP)**](https://github.com/Argoneon1810/Tileshelf/releases/latest) · [Chrome Web Store](https://chromewebstore.google.com/detail/tileshelf/gpcpfkhbghjbcoechkpdfcjokolhfnep) · [Changelog](CHANGELOG.md) · [Privacy Policy](PRIVACY.md) · [Report an Issue](https://github.com/Argoneon1810/Tileshelf/issues)
 
 </div>
 
@@ -28,7 +28,7 @@ roll back with 100-step per-device version history, search everything from one b
 
 ## Installation
 
-### 1. Direct Install from GitHub Releases (No Node.js Needed)
+### 1. Direct Install from GitHub Releases (No Node.js Needed · Recommended While Store Review Is Pending)
 
 You can install the official packaged release right away without building from source:
 
@@ -39,7 +39,7 @@ You can install the official packaged release right away without building from s
 
 ### 2. Chrome Web Store
 
-- Chrome Web Store review submission is in progress (the direct store link will be added here once initial review completes).
+- [Tileshelf on the Chrome Web Store](https://chromewebstore.google.com/detail/tileshelf/gpcpfkhbghjbcoechkpdfcjokolhfnep) *(Initial store review is currently in progress; one-click install and automatic updates will unlock as soon as review completes.)*
 - Switching between an unpacked build and the Chrome Web Store edition assigns a new Chrome extension ID. Export a `.json` backup from **Settings → Backup** before switching and import it into the new installation.
 
 <details>

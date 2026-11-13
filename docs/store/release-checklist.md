@@ -27,4 +27,4 @@
 1. `https://raw.githubusercontent.com/Argoneon1810/Tileshelf/main/PRIVACY.md` 페이지가 정상(`HTTP 200`) 열리는지 확인한다.
 2. [Chrome 웹 스토어 개발자 대시보드](https://chrome.google.com/webstore/devconsole)에서 **새 항목**으로 `release/tileshelf-1.0.0.zip`을 업로드한다.
 3. `docs/store/listing.md`에 적힌 정본 값을 **패키지 · 스토어 등록정보(English + 한국어) · 개인정보 보호 관행 · 테스트 안내** 탭에 차례로 입력하고 심사를 제출한다.
-4. 대시보드가 부여한 32자리 스토어 확장 ID가 확정되면 `README.md`와 `README.en.md`의 Chrome 웹 스토어 링크에 반영한다.
+4. 대시보드가 부여한 32자리 스토어 확장 ID(`gpcpfkhbghjbcoechkpdfcjokolhfnep`)를 `README.md`와 `README.en.md`의 Chrome 웹 스토어 링크에 반영 완료.
