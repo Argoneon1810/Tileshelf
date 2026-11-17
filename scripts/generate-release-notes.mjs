@@ -4,8 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * GitHub Release 본문(한·영 수동 설치 안내 + CHANGELOG 발췌 + SHA-256 체크섬) 생성기.
+ * GitHub Release 본문(README 설치 절 안내 + CHANGELOG 발췌 + SHA-256 체크섬) 생성기.
  * RELEASE_TAG 환경변수가 주어지면(예: v1.0.0) src/manifest.json의 판 번호와 일치하는지 검증한다.
+ * PUBLISHED_TAGS(이미 공개된 릴리스 태그 목록, 줄·공백 구분)가 주어지면, 그중 이번 판보다 작은 가장 큰 판
+ * 다음부터 이번 판까지의 CHANGELOG 절을 모두 싣는다(공개하지 않은 중간 판의 변화도 빠지지 않게).
+ * 주어지지 않으면 이번 판의 절만 싣는다.
  */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,7 +41,27 @@ if (!fs.existsSync(zipFullPath)) {
 const zipBuffer = fs.readFileSync(zipFullPath);
 const sha256 = crypto.createHash('sha256').update(zipBuffer).digest('hex');
 
-function extractChangelogForVersion(ver) {
+// '1.2.10' 꼴 판 번호 비교. 음수면 a가 먼저
+function compareVersions(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+  return 0;
+}
+
+// 이미 공개된 판 가운데 이번 판보다 작은 가장 큰 판. 없으면 null
+function previousPublishedVersion(ver) {
+  const tags = (process.env.PUBLISHED_TAGS || '').split(/\s+/).filter(Boolean);
+  const older = tags
+    .map((t) => t.match(/^v(\d+\.\d+\.\d+)$/)?.[1])
+    .filter((v) => v && compareVersions(v, ver) < 0)
+    .sort(compareVersions);
+  return older.length ? older[older.length - 1] : null;
+}
+
+// prev 다음부터 ver까지의 절(prev가 null이면 ver 절 하나)
+function extractChangelogForVersion(ver, prev = null) {
+  const inRange = (v) => (prev ? compareVersions(v, prev) > 0 && compareVersions(v, ver) <= 0 : v === ver);
   const changelogPath = path.join(ROOT, 'CHANGELOG.md');
   if (!fs.existsSync(changelogPath)) return '';
   const lines = fs.readFileSync(changelogPath, 'utf8').split(/\r?\n/);
@@ -53,7 +76,7 @@ function extractChangelogForVersion(ver) {
       if (collecting && current.length > 0) {
         matchedBlocks.push(current.join('\n').trim());
       }
-      if (m[1] === ver) {
+      if (inRange(m[1])) {
         collecting = true;
         current = [`### ${line.replace(/^##\s+/, '')}`];
       } else {
@@ -70,7 +93,8 @@ function extractChangelogForVersion(ver) {
   return matchedBlocks.join('\n\n');
 }
 
-const changelogExcerpt = extractChangelogForVersion(version);
+const prevPublished = previousPublishedVersion(version);
+const changelogExcerpt = extractChangelogForVersion(version, prevPublished);
 
 const firstReleaseSummary =
   version === '1.0.0'
@@ -87,22 +111,10 @@ const firstReleaseSummary =
 
 const notes =
   [
-    `## 바로 설치하기 (ZIP 수동 설치 · 빌드 도구 불필요)`,
-    ``,
-    `Chrome 웹 스토어 심사를 기다리는 동안이나 오프라인 환경에서 소스 빌드 없이 바로 설치해 쓸 수 있는 공식 패키지입니다.`,
-    ``,
-    `1. 아래 **Assets**에서 **\`${zipName}\`** 파일을 내려받아 지우지 않을 폴더(예: \`Documents\\Tileshelf\`)에 **압축을 풉니다**.`,
-    `2. Chrome 주소창에 \`chrome://extensions\`를 입력해 이동한 뒤 오른쪽 위 **개발자 모드(Developer mode)** 를 켭니다.`,
-    `3. 왼쪽 위 **압축해제된 확장 프로그램을 로드합니다(Load unpacked)** 를 누르고 방금 압축을 푼 폴더(\`manifest.json\`이 들어 있는 폴더)를 선택합니다.`,
-    ``,
-    `---`,
-    ``,
-    `## Quick Manual Install (Unpacked ZIP · No Node.js Needed)`,
-    ``,
-    `1. Download **\`${zipName}\`** from **Assets** below and extract it into a permanent folder.`,
-    `2. Open \`chrome://extensions\` in Chrome and toggle **Developer mode** on (top-right corner).`,
-    `3. Click **Load unpacked** (top-left) and select the extracted folder containing \`manifest.json\`.`,
-    ``,
+    // 설치·업데이트 방법은 README의 설치 절 한 곳에만 둔다(두 곳에 두면 어긋난다). 문구는 개발자가 Gemini에게 받아 온 것.
+    // 빈 줄('')은 아래 filter가 지우므로 한 덩어리 안에 넣는다. --- 바로 위에 글 줄이 붙으면 Markdown이 그 줄을 제목으로 만든다
+    `아래 ZIP 파일로 새로 설치하거나 기존 폴더에 덮어써서 업데이트하는 방법은 [README의 설치하기 안내](https://github.com/Argoneon1810/Tileshelf#설치하기)를 참고해 주세요.\n\n` +
+      `For instructions on installing the ZIP file below or updating an existing installation, please see the [Installation guide in the README](https://github.com/Argoneon1810/Tileshelf/blob/main/README.en.md#installation).\n`,
     `---`,
     ``,
     `## 바뀐 내역 (Changelog)`,

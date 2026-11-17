@@ -17,3 +17,13 @@ try {
 } catch {
   /* 남긴 값이 없거나 깨졌으면 기본색으로 시작한다 */
 }
+// 판 밝기 슬라이더로 정한 판 색(panel-tone.ts가 'r, g, b'로 남김)
+try {
+  const p = localStorage.getItem('bootPanel');
+  if (p && /^\d{1,3}, \d{1,3}, \d{1,3}$/.test(p)) {
+    document.documentElement.style.setProperty('--glass', p);
+    document.documentElement.style.setProperty('--ic-panel', p);
+  }
+} catch {
+  /* 남긴 값이 없으면 CSS 기본 판 색(가운데 값)으로 시작한다 */
+}

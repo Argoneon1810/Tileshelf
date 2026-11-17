@@ -2,6 +2,7 @@
 
 import { isSafeImageDataUrl, isSafeShortcutUrl, newId, normalizeUrl } from './store.ts';
 import type { Icons, Shortcut, Store, SyncDoc } from './store.ts';
+import { sanitizeIconEffects } from './icon-effects.ts';
 import { t } from './i18n.ts';
 
 export const BACKUP_APP = 'tileshelf';
@@ -56,6 +57,8 @@ export function parseBackup(text: string): { doc: SyncDoc; bgImage: string | nul
         addedAt: typeof raw.addedAt === 'number' && Number.isFinite(raw.addedAt) ? raw.addedAt : Date.now(),
       };
       if (typeof raw.icon === 'string' && raw.icon in safeIcons) item.icon = raw.icon;
+      const effects = sanitizeIconEffects(raw.iconEffects);
+      if (effects && effects.enabled) item.iconEffects = effects;
       shortcuts.push(item);
     }
     if (data.shortcuts.length > 0 && shortcuts.length === 0) {
@@ -89,8 +92,7 @@ export function downloadJson(obj: unknown, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-export function backupFilename(): string {
-  const d = new Date();
+export function backupFilename(d: Date = new Date()): string {
   const p = (n: number): string => String(n).padStart(2, '0');
   return `tileshelf-backup-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}.json`;
 }

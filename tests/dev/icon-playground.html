@@ -1,0 +1,2071 @@
+<!doctype html>
+<html lang="ko" data-theme="dark" data-size="md" data-bg="gradient" data-legibility="dim">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tileshelf 아이콘 정규화 · 표시 영역 · 이름 숨김 플레이그라운드</title>
+  <link rel="stylesheet" href="../../src/css/newtab.css">
+  <style>
+    /* 모든 색상은 color-preset.md 및 newtab.css의 CSS 변수를 그대로 따른다 */
+    :root {
+      --icon-scale: 50%;
+      --icon-radius: 8px;
+      /* 셀 전체 높이(--tile-cell-h)를 고정하여 이름 표시 유무와 무관하게 격자 시각적 인테그리티를 100% 유지한다 */
+      --tile-cell-h: 98px;
+      --tile-icon-expanded: 64px;
+      --tile-radius: 16px;
+      --tile-radius-expanded: 18px;
+    }
+    :root[data-size='sm'] {
+      --tile-cell-h: 86px;
+      --tile-icon-expanded: 54px;
+      --tile-radius: 13px;
+      --tile-radius-expanded: 15px;
+    }
+    :root[data-size='lg'] {
+      --tile-cell-h: 112px;
+      --tile-icon-expanded: 74px;
+      --tile-radius: 19px;
+      --tile-radius-expanded: 21px;
+    }
+
+    body.pg-body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 410px;
+      overflow-x: hidden;
+    }
+    @media (max-width: 1100px) {
+      body.pg-body {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 왼쪽: 실제 새 탭 격자 미리보기 무대 */
+    .pg-stage {
+      position: relative;
+      min-height: 100vh;
+      padding: 24px 24px 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* 상단 단계별 바로가기 막대 */
+    .pg-journey-bar {
+      width: min(980px, 100%);
+      margin-bottom: 24px;
+      padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 14px;
+      z-index: 5;
+    }
+    .pg-journey-steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .pg-step-btn {
+      border: 1px solid color-mix(in srgb, var(--muted) 32%, transparent);
+      background: rgba(var(--glass), .55);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 6px 13px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color .15s, border-color .15s, transform .12s var(--ease);
+    }
+    .pg-step-btn:hover {
+      border-color: var(--muted);
+      background: rgba(var(--glass), .85);
+    }
+    .pg-step-btn[aria-pressed='true'] {
+      background: var(--btn);
+      color: var(--on-btn);
+      border-color: var(--btn);
+    }
+    .pg-journey-desc {
+      width: 100%;
+      font-size: 12.5px;
+      color: var(--muted);
+      margin: 2px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .pg-stage .center {
+      width: 100%;
+      max-width: 980px;
+      margin: 1vh auto 0;
+      padding: 0;
+    }
+
+    /* 타일 셀(.tile .link)의 전체 공간 예산(높이 --tile-cell-h, 너비 --tile-w)은 언제나 불변이다.
+       공간 배분의 분기는 오직 '이름 상시 표시(data-show-label="true")' vs '이름 숨김(data-show-label="false")'에서만 일어난다. */
+    .pg-stage .tile {
+      height: var(--tile-cell-h);
+    }
+    .pg-stage .tile .link {
+      position: relative;
+      height: var(--tile-cell-h);
+      justify-content: center;
+      padding: 6px 2px;
+      gap: 8px;
+    }
+    .pg-stage .tile .ic {
+      width: var(--tile-icon);
+      height: var(--tile-icon);
+      border-radius: var(--tile-radius);
+      position: relative;
+      flex: none;
+      transition: width .18s var(--ease), height .18s var(--ease), border-radius .18s var(--ease), transform .15s var(--ease), background .15s;
+    }
+
+    /* 이름이 표시되지 않는 상태(호버 시 표시 포함): 이름 공간만큼 타일(.ic) 자체가 더 커진다.
+       호버 시 표시되는 이름(.lb)은 별도 캡슐 뷰를 새로 만들지 않고,
+       기존 '이름 항상 표시'와 완전히 동일한 .tile .lb 스타일로 아이콘(.ic) 바로 아래에 떠오른다. */
+    .pg-stage[data-show-label='false'] .tile .ic {
+      width: var(--tile-icon-expanded);
+      height: var(--tile-icon-expanded);
+      border-radius: var(--tile-radius-expanded);
+    }
+    /* 제품(src/css/newtab.css)과 같은 '타일 활성' 조건: 호버 또는 타일 안의 키보드 초점 */
+    .pg-stage[data-show-label='false'] .tile { --tile-lift: -4px; }
+    .pg-stage .tile:is(:hover, :has(:focus-visible)) :is(.ic, .badge) {
+      transform: translateY(var(--tile-lift));
+    }
+    .pg-stage[data-show-label='false'] .tile .lb {
+      position: absolute;
+      top: calc(50% + var(--tile-icon-expanded) / 2 + 2px);
+      left: 50%;
+      margin: calc(-1 * var(--lb-room)) 0 0 0;
+      transform: translateX(-50%);
+      opacity: 0;
+      z-index: 6;
+      transition: opacity .15s var(--ease), color .3s ease, text-shadow .3s ease;
+    }
+    .pg-stage[data-show-label='false'][data-hover-label='true'] .tile:is(:hover, :has(:focus-visible)) .lb {
+      opacity: 1;
+    }
+    .pg-stage[data-show-label='false'] .badge {
+      top: calc((var(--tile-cell-h) - var(--tile-icon-expanded)) / 2 - 2px);
+      left: calc(50% + var(--tile-icon-expanded) / 2 - 10px);
+    }
+
+    /* 단일 표시 영역 모드일 때는 자동/수동 구분 없이 --icon-scale을 따른다 */
+    .pg-stage[data-unified-scale='true'] .tile .ic img,
+    .pg-stage[data-unified-scale='true'] .tile .ic img.custom {
+      width: var(--icon-scale);
+      height: var(--icon-scale);
+      border-radius: var(--icon-radius);
+      transition: width .12s var(--ease), height .12s var(--ease), border-radius .12s var(--ease);
+    }
+
+    /* 보조선 (타일 셀 경계 + 실질 차지 영역 시각화 상자) */
+    .pg-stage[data-show-guides='true'] .tile {
+      outline: 1px dotted color-mix(in srgb, var(--focus) 55%, transparent);
+      outline-offset: -1px;
+    }
+    .pg-stage[data-show-guides='true'] .tile .ic::before {
+      content: '';
+      position: absolute;
+      width: var(--icon-scale);
+      height: var(--icon-scale);
+      border: 1px dashed var(--accent);
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 3;
+      opacity: .8;
+    }
+    .tile-metric-tag {
+      display: none;
+      position: absolute;
+      bottom: 2px;
+      right: 3px;
+      font-size: 9.5px;
+      font-weight: 600;
+      padding: 0 4px;
+      border-radius: 4px;
+      background: rgba(15, 23, 32, .82);
+      color: #eef6ff;
+      pointer-events: none;
+      z-index: 4;
+    }
+    .pg-stage[data-show-guides='true'] .tile-metric-tag {
+      display: inline-block;
+    }
+
+    /* 오른쪽: 컨트롤 & 개인화 서랍 패널 */
+    .pg-panel {
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+      padding: 18px 20px 48px;
+      background: rgba(var(--glass), .9);
+      backdrop-filter: blur(22px) saturate(1.2);
+      border-left: 1px solid color-mix(in srgb, var(--muted) 28%, transparent);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      z-index: 10;
+    }
+    @media (max-width: 1100px) {
+      .pg-panel {
+        height: auto;
+        position: static;
+        border-left: 0;
+        border-top: 1px solid color-mix(in srgb, var(--muted) 28%, transparent);
+      }
+    }
+
+    .pg-panel h2 {
+      margin: 0;
+      font-size: 15.5px;
+      font-weight: 600;
+    }
+    .pg-sec {
+      padding-top: 12px;
+      border-top: 1px solid color-mix(in srgb, var(--muted) 24%, transparent);
+      display: grid;
+      gap: 7px;
+    }
+    .pg-sec h3 {
+      margin: 0;
+      font-size: 13.5px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .pg-panel .setting {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+    }
+    .pg-panel .setting > span {
+      flex: 1 1 auto;
+      min-width: 0;
+      word-break: keep-all;
+      line-height: 1.35;
+    }
+    .pg-panel .setting > .switch,
+    .pg-panel .setting > .seg,
+    .pg-panel .setting > input[type='range'] {
+      flex-shrink: 0;
+    }
+    .pg-panel .setting > select {
+      flex: 0 0 156px;
+      width: 156px;
+      max-width: 48%;
+      height: 30px;
+      border-radius: 8px;
+      padding: 0 8px;
+      font-size: 12px;
+      color: var(--text);
+      background: rgba(var(--glass), .9);
+      border: 1px solid color-mix(in srgb, var(--muted) 45%, transparent);
+      text-overflow: ellipsis;
+    }
+    .pg-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--focus) 20%, transparent);
+      color: var(--focus);
+    }
+    .pg-badge.warn {
+      background: color-mix(in srgb, var(--danger) 22%, transparent);
+      color: var(--danger);
+    }
+    .pg-note {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    /* 비파괴 스택 JSON 미리보기 상자 */
+    .stack-preview {
+      font: 11px/1.4 Consolas, monospace;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: rgba(15, 23, 32, .55);
+      color: #c2cddb;
+      border: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+      white-space: pre-wrap;
+      max-height: 110px;
+      overflow-y: auto;
+    }
+
+    /* 검사기 컨펌 모달 (일괄 설정 + 개별 설정 동시 지원) */
+    #inspector-dlg .sheet {
+      width: min(860px, calc(100vw - 32px));
+      max-height: calc(100vh - 40px);
+    }
+    .insp-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .insp-toolbar {
+      display: grid;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--muted) 12%, transparent);
+      margin-bottom: 12px;
+      font-size: 12.5px;
+    }
+    .insp-toolbar-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .insp-list {
+      display: grid;
+      gap: 8px;
+      max-height: 50vh;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .insp-card {
+      display: grid;
+      grid-template-columns: 26px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      background: rgba(var(--glass), .65);
+      border: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
+    }
+    .insp-card[data-checked='true'] {
+      border-color: var(--focus);
+    }
+    .insp-info {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .insp-title {
+      font-weight: 600;
+      font-size: 13.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .insp-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+    .insp-chip {
+      border: 1px solid color-mix(in srgb, var(--muted) 38%, transparent);
+      background: rgba(var(--glass), .5);
+      color: var(--muted);
+      border-radius: 7px;
+      padding: 3px 8px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color .12s, color .12s, border-color .12s;
+    }
+    .insp-chip[aria-pressed='true'] {
+      background: color-mix(in srgb, var(--btn) 22%, transparent);
+      color: var(--text);
+      border-color: var(--btn);
+    }
+    .insp-select {
+      height: 25px;
+      border-radius: 7px;
+      padding: 0 6px;
+      font-size: 11.5px;
+      color: var(--text);
+      background: rgba(var(--glass), .85);
+      border: 1px solid color-mix(in srgb, var(--muted) 38%, transparent);
+    }
+    .insp-tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 6px;
+      background: color-mix(in srgb, var(--muted) 20%, transparent);
+      color: var(--text);
+    }
+    .insp-tag.warn {
+      background: color-mix(in srgb, var(--warning) 22%, transparent);
+      color: var(--warning);
+    }
+    .insp-tag.good {
+      background: color-mix(in srgb, var(--success) 22%, transparent);
+      color: var(--success);
+    }
+    .insp-tag.accent {
+      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      color: var(--accent);
+    }
+    .insp-compare {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .insp-preview-box {
+      width: 56px;
+      height: 56px;
+      border-radius: 15px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      background: rgba(25, 29, 35, .86);
+      border: 1px solid color-mix(in srgb, var(--muted) 32%, transparent);
+    }
+    .insp-compare[data-preview-bg='light'] .insp-preview-box {
+      background: rgba(244, 247, 251, .92);
+    }
+    .insp-preview-box img {
+      width: var(--icon-scale, 50%);
+      height: var(--icon-scale, 50%);
+      object-fit: contain;
+      border-radius: 6px;
+    }
+    .insp-arrow {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* 플레이그라운드 전용 실험 도구 막대 (실앱 설정 서랍과 물리적으로 분리) */
+    .pg-debug-bar {
+      width: min(980px, 100%);
+      margin-top: 32px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      font-size: 12.5px;
+    }
+    .pg-debug-bar summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--muted);
+      user-select: none;
+    }
+    .pg-debug-body {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    @media (max-width: 780px) {
+      .pg-debug-body {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .drop-lab {
+      padding: 10px;
+      border-radius: var(--radius-md);
+      border: 1px dashed color-mix(in srgb, var(--muted) 45%, transparent);
+      background: rgba(var(--glass), .45);
+      display: grid;
+      gap: 6px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .drop-lab.dragover {
+      border-color: var(--focus);
+      background: color-mix(in srgb, var(--focus) 12%, transparent);
+    }
+  </style>
+</head>
+<body class="pg-body">
+  <!-- 배경 층 -->
+  <div id="bg" data-fit="cover" aria-hidden="true">
+    <canvas class="main" id="bg-canvas"></canvas>
+  </div>
+
+  <!-- 왼쪽: 실제 새 탭 격자 무대 -->
+  <div class="pg-stage" id="stage" data-unified-scale="false" data-show-guides="false" data-show-label="true" data-hover-label="true">
+    <div class="pg-journey-bar glass">
+      <div class="pg-journey-steps" id="journey-steps">
+        <button type="button" class="pg-step-btn" data-step="0" aria-pressed="true">0. 원본 상태</button>
+        <button type="button" class="pg-step-btn" data-step="1" aria-pressed="false">1. 표시 상자 통일 (50%)</button>
+        <button type="button" class="pg-step-btn" data-step="2" aria-pressed="false">2. 배경색 정밀 제거</button>
+        <button type="button" class="pg-step-btn" data-step="3" aria-pressed="false">3. 여백 재단 · 등면적 · 대비</button>
+        <button type="button" class="pg-step-btn" data-step="4" aria-pressed="false">4. 이름 숨김 (타일 확장)</button>
+      </div>
+      <div class="pg-journey-desc">
+        <span id="journey-caption">0단계 (원본 상태): 자동(50%)·수동(62%) 이중 규격과 외곽 흰 배경, 투명 여백 편차가 그대로 있는 상태입니다.</span>
+        <button type="button" class="btn small primary" id="open-inspector-top">아이콘 검사 및 정리…</button>
+      </div>
+    </div>
+
+    <main class="center">
+      <form class="search glass" role="search" onsubmit="event.preventDefault()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="pg-search" type="search" placeholder="바로가기 찾기 · 웹 검색 · 주소 이동" autocomplete="off" spellcheck="false">
+      </form>
+      <div id="pg-results" class="results glass" hidden></div>
+      <div id="pg-grid" class="grid"></div>
+    </main>
+
+    <!-- 플레이그라운드 전용 실험 도구 (실앱 설정 서랍과 분리) -->
+    <details class="pg-debug-bar glass">
+      <summary>🧪 플레이그라운드 전용 실험·검증 도구 (실제 앱 설정 서랍에는 포함되지 않음)</summary>
+      <div class="pg-debug-body">
+        <div style="display:grid; gap:8px;">
+          <div class="setting" style="margin:0;">
+            <span>셀 경계선 · 체감 비율(%) 수치 보기</span>
+            <label class="switch"><input id="chk-show-guides" type="checkbox"><i></i></label>
+          </div>
+          <div class="drop-lab" id="drop-lab">
+            <div><b>내 아이콘 파일 끌어다 놓기 / 붙여넣기(Ctrl+V)</b></div>
+            <div>첫 번째 타일에 이미지를 넣고 검사 모달에서 바로 확인합니다. <button type="button" class="btn ghost small" id="btn-pick-custom">파일 선택…</button></div>
+            <input type="file" id="inp-custom-file" accept="image/*" hidden>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11.5px; color:var(--muted); margin-bottom:4px;">선택한 타일의 비파괴 효과 스택 JSON (타일 클릭 시 갱신)</div>
+          <div class="stack-preview" id="stack-json-view">// 타일을 클릭하면 해당 아이콘의 비파괴 효과 스택(JSON)이 표시됩니다.</div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- 오른쪽: 실제 앱의 2단계 설정 서랍 구조 (설정 홈 ↔ 이름 가독성 / 화면 설정) -->
+  <aside class="pg-panel drawer">
+    <div id="pg-settings-home" class="drill-stage">
+      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <h2>설정</h2>
+        <span class="pg-badge" id="storage-mode-badge">비파괴 스택</span>
+      </header>
+
+      <div class="tier-label">자주 쓰는 설정</div>
+      <div class="drill-list">
+        <button type="button" class="drill-item" data-open-page="legibility">
+          <span class="drill-item-text">
+            <b>이름 가독성</b>
+            <span id="sum-legibility">항상 표시 · 배경 막</span>
+          </span>
+          <span class="drill-arrow" aria-hidden="true">›</span>
+        </button>
+        <button type="button" class="drill-item" data-open-page="display">
+          <span class="drill-item-text">
+            <b>화면 설정</b>
+            <span id="sum-display">어둡게 · 보통 · 아이콘 50%</span>
+          </span>
+          <span class="drill-arrow" aria-hidden="true">›</span>
+        </button>
+      </div>
+
+      <p class="pg-note" style="margin-top:8px;">실제 앱의 2단계 설정 서랍 구조입니다. 항목을 눌러 하위 탭으로 이동하거나, 아래에서 두 탭을 바로 조작할 수 있습니다.</p>
+    </div>
+
+    <!-- 탭 1: 이름 가독성 (이름 표시 방식 포함) -->
+    <section class="pg-sec" id="page-legibility">
+      <h3>
+        <span>이름 가독성</span>
+        <span class="pg-badge" id="label-mode-badge">항상 표시</span>
+      </h3>
+      <div class="setting">
+        <span>바로가기 이름 항상 표시</span>
+        <label class="switch"><input id="chk-show-label" type="checkbox" checked><i></i></label>
+      </div>
+      <div class="setting" id="row-hover-sub" hidden>
+        <span>마우스를 올렸을 때 이름 표시</span>
+        <label class="switch"><input id="chk-hover-label" type="checkbox" checked><i></i></label>
+      </div>
+      <div class="setting" id="row-suppress-title" hidden>
+        <span>브라우저 기본 툴팁(주소 풍선) 숨김</span>
+        <label class="switch"><input id="chk-suppress-title" type="checkbox" checked><i></i></label>
+      </div>
+      <div class="setting">
+        <span>가독성 효과</span>
+        <select id="sel-legibility">
+          <option value="shadow">그림자 효과</option>
+          <option value="dim" selected>배경 막</option>
+          <option value="card">반투명 카드</option>
+        </select>
+      </div>
+      <p class="pg-note">이름을 숨기면 이름 줄이 차지하던 공간만큼 타일 상자가 커지며, 호버 시에는 기존과 같은 모양의 이름이 아이콘 아래에 나타납니다.</p>
+    </section>
+
+    <!-- 탭 2: 화면 설정 (테마 · 타일 크기 · 아이콘 표시 영역 50% 기본 · 아이콘 정리) -->
+    <section class="pg-sec" id="page-display">
+      <h3>
+        <span>화면 설정</span>
+        <span class="pg-badge" id="scale-readout">아이콘 50%</span>
+      </h3>
+      <div class="setting">
+        <span>테마</span>
+        <div class="seg" id="seg-theme">
+          <button type="button" data-v="dark" aria-pressed="true">어둡게</button>
+          <button type="button" data-v="light" aria-pressed="false">밝게</button>
+        </div>
+      </div>
+      <div class="setting">
+        <span>바로가기 크기</span>
+        <div class="seg" id="seg-tile-size">
+          <button type="button" data-v="sm" aria-pressed="false">작게</button>
+          <button type="button" data-v="md" aria-pressed="true">보통</button>
+          <button type="button" data-v="lg" aria-pressed="false">크게</button>
+        </div>
+      </div>
+      <div class="setting">
+        <span>아이콘 표시 영역 비율 <b id="lbl-icon-scale">50%</b></span>
+        <input id="rng-icon-scale" type="range" min="35" max="75" step="1" value="50">
+      </div>
+      <div class="setting">
+        <span>단일 표시 영역 규격 적용</span>
+        <label class="switch"><input id="chk-unified-scale" type="checkbox"><i></i></label>
+      </div>
+
+      <div style="border-top:1px solid color-mix(in srgb, var(--muted) 20%, transparent); padding-top:10px; margin-top:4px; display:grid; gap:8px;">
+        <div class="setting" style="margin:0;">
+          <span>아이콘 배경 · 여백 정리 <span class="pg-badge" id="cleaned-count-badge" style="margin-left:4px;">적용 전</span></span>
+          <button type="button" class="btn primary small" id="btn-run-inspector">검사 및 설정…</button>
+        </div>
+        <p class="pg-note">배경색 제거와 여백·등면적 보정을 일괄 또는 아이콘별로 설정합니다.</p>
+        <div class="row" style="justify-content:space-between;">
+          <button type="button" class="btn ghost small" id="btn-bake-open">저사양용 이미지 베이킹…</button>
+          <button type="button" class="btn ghost small" id="btn-reset-icons">원본으로 초기화</button>
+        </div>
+      </div>
+    </section>
+  </aside>
+
+  <!-- 비파괴 효과 스택 검사 및 컨펌 모달 (일괄 설정 + 개별 설정 통합) -->
+  <dialog id="inspector-dlg">
+    <div class="sheet">
+      <div class="insp-header">
+        <div>
+          <h2 style="margin-bottom:4px;">아이콘 배경 · 여백 정리</h2>
+          <p style="margin:0; font-size:13px;">상단에서 체크한 항목을 일괄 설정하거나, 아래 목록에서 아이콘마다 개별 옵션을 직접 조정할 수 있습니다.</p>
+        </div>
+        <button type="button" class="btn ghost" data-close>닫기</button>
+      </div>
+
+      <div class="insp-toolbar">
+        <div class="insp-toolbar-row">
+          <div class="row">
+            <button type="button" class="btn small" id="insp-select-recommended">권장 후보 선택</button>
+            <button type="button" class="btn ghost small" id="insp-select-all">모두 선택</button>
+            <button type="button" class="btn ghost small" id="insp-select-invert">선택 반전</button>
+            <button type="button" class="btn ghost small" id="insp-select-none">모두 해제</button>
+          </div>
+          <div class="row">
+            <span style="color:var(--muted);">미리보기 타일:</span>
+            <div class="seg" id="insp-preview-bg">
+              <button type="button" data-v="dark" aria-pressed="true">어둡게</button>
+              <button type="button" data-v="light" aria-pressed="false">밝게</button>
+            </div>
+          </div>
+        </div>
+        <div class="insp-toolbar-row" style="border-top:1px solid color-mix(in srgb, var(--muted) 22%, transparent); padding-top:8px;">
+          <span style="color:var(--muted); font-weight:600;">체크된 항목 일괄 변경:</span>
+          <div class="row">
+            <button type="button" class="insp-chip" id="batch-bg" aria-pressed="true">배경 제거: 켜짐</button>
+            <button type="button" class="insp-chip" id="batch-trim" aria-pressed="true">여백 크롭: 켜짐</button>
+            <button type="button" class="insp-chip" id="batch-optical" aria-pressed="true">등면적 보정: 켜짐</button>
+            <select class="insp-select" id="batch-theme-adapt" title="체크된 항목의 다크모드 대비 보정 일괄 변경">
+              <option value="auto">다크 대비: 자동 보정</option>
+              <option value="luma-lift">다크 대비: 명도 리프트</option>
+              <option value="invert-mark">다크 대비: 음각 반전</option>
+              <option value="keyline">다크 대비: 외곽 윤곽선</option>
+              <option value="none">다크 대비: 원본 유지</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="insp-list" id="insp-list"></div>
+
+      <div class="actions" style="margin-top:16px;">
+        <span class="pg-note" id="insp-summary-note"></span>
+        <div class="row">
+          <button type="button" class="btn ghost" data-close>취소</button>
+          <button type="button" class="btn primary" id="insp-apply-btn">선택한 아이콘 적용</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 파괴적 베이킹(Baking) 경고 모달 -->
+  <dialog id="bake-dlg">
+    <div class="sheet">
+      <h2 style="color:var(--warning);">⚠️ 비파괴 효과 스택을 이미지에 영구 병합(베이킹)할까요?</h2>
+      <p>베이킹은 저사양 기기에서 런타임 계산 비용을 줄이기 위해 현재 화면의 효과 스택(배경 제거, 여백 크롭, <b>현재 테마 기준 대비 보정</b>)을 실제 비트맵 픽셀에 구워 넣고 원본을 덮어쓰는 <b>파괴적(Destructive) 작업</b>입니다.</p>
+      <p style="color:var(--danger); font-size:13px;">
+        • <b>테마 전환 시 손실</b>: 지금 어두운 테마에서 대비 보정이 들어간 채로 구우면, 나중에 밝은 테마로 바꿨을 때 원본 색으로 돌아가지 못합니다.<br>
+        • <b>재편집 화질 열화</b>: 잘려 나간 여백과 지워진 배경 픽셀은 영구 삭제되며, 반복해서 구우면 재압축 손실이 누적됩니다.
+      </p>
+      <div class="actions">
+        <button type="button" class="btn ghost" data-close>취소 (비파괴 스택 유지)</button>
+        <button type="button" class="btn danger" id="btn-confirm-bake" style="background:rgba(var(--glass),.9); box-shadow:inset 0 0 0 1px var(--danger);">경고를 확인했으며 지금 상태로 베이킹</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    // =========================================================================
+    // 1. 실제 화면의 24개 타일 표본
+    // =========================================================================
+    const TILE_SPECS = [
+      { id: 'ssafy', name: '싸피', url: 'https://edu.ssafy.com', isCustom: true, pad: 0.16, bgKind: 'none', draw: (ctx) => {
+        ctx.fillStyle = '#0a0e14';
+        ctx.beginPath(); ctx.moveTo(10, 10); ctx.lineTo(42, 10); ctx.lineTo(38, 46); ctx.lineTo(58, 56); ctx.lineTo(10, 56); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#38b6ff'; ctx.font = 'bold 25px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 26, 32);
+      }},
+      { id: 'ssafygit', name: '싸피깃', url: 'https://project.ssafy.com', isCustom: true, pad: 0.04, bgKind: 'none', draw: (ctx) => {
+        ctx.fillStyle = '#5bc0be';
+        ctx.beginPath(); ctx.moveTo(10, 8); ctx.lineTo(44, 8); ctx.lineTo(40, 46); ctx.lineTo(58, 56); ctx.lineTo(10, 56); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#0f1720'; ctx.font = 'bold 27px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 27, 32);
+      }},
+      { id: 'gitlab', name: '깃랩', url: 'https://gitlab.com', isCustom: true, pad: 0.04, bgKind: 'none', draw: (ctx) => {
+        ctx.fillStyle = '#e24329'; ctx.beginPath(); ctx.moveTo(32, 54); ctx.lineTo(10, 26); ctx.lineTo(54, 26); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#fc6d26'; ctx.beginPath(); ctx.moveTo(10, 26); ctx.lineTo(18, 8); ctx.lineTo(26, 26); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(54, 26); ctx.lineTo(46, 8); ctx.lineTo(38, 26); ctx.closePath(); ctx.fill();
+      }},
+      { id: 'swea', name: 'swea', url: 'https://swexpertacademy.com', isCustom: true, pad: 0.08, bgKind: 'none', draw: (ctx) => {
+        roundRect(ctx, 6, 6, 52, 52, 10, '#2b6cb0');
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 34px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('S', 32, 34);
+      }},
+      { id: 'notion1', name: '내 노션', url: 'https://notion.so/my', isCustom: false, pad: 0.15, bgKind: 'none', draw: drawNotion },
+      { id: 'notion2', name: '강사님 노션', url: 'https://notion.so/inst', isCustom: false, pad: 0.15, bgKind: 'none', draw: drawNotion },
+      { id: 'notion3', name: '스터디 노션', url: 'https://notion.so/study', isCustom: false, pad: 0.15, bgKind: 'none', draw: drawNotion },
+      { id: 'schedule', name: '16기 일정 한눈...', url: 'https://docs.google.com', isCustom: true, pad: 0.0, bgKind: 'jpeg-white', draw: (ctx) => {
+        // 단일 클리핑 경로 안에 4색 사분면을 채워 색상 경계에 흰 배경 틈새가 생기지 않게 그린다
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(32, 32, 14.5, -0.02, 5.42, false);
+        ctx.arc(32, 32, 9.5, 5.42, -0.02, true);
+        ctx.closePath();
+        ctx.rect(32, 29.8, 14.2, 4.8);
+        ctx.clip();
+
+        const wedge = (a0, a1, color) => {
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(32, 32);
+          ctx.arc(32, 32, 22, a0, a1);
+          ctx.closePath();
+          ctx.fill();
+        };
+        wedge(-0.15, 0.88, '#4285F4');
+        wedge(0.82, 2.28, '#34A853');
+        wedge(2.22, 3.88, '#FBBC05');
+        wedge(3.82, 5.50, '#EA4335');
+        ctx.fillStyle = '#4285F4';
+        ctx.fillRect(31, 29.5, 16, 5.5);
+        ctx.restore();
+      }},
+      { id: 'mattermost', name: '미팅싸피', url: 'https://meeting.ssafy.com', isCustom: true, pad: 0.0, bgKind: 'jpeg-white', badgeNew: true, draw: (ctx) => {
+        ctx.strokeStyle = '#1b2c48'; ctx.lineWidth = 5.5;
+        ctx.beginPath(); ctx.arc(32, 33, 14, 0.25, Math.PI * 1.62); ctx.stroke();
+        ctx.fillStyle = '#1b2c48';
+        ctx.beginPath(); ctx.moveTo(32, 33); ctx.lineTo(39, 16); ctx.lineTo(44, 21); ctx.closePath(); ctx.fill();
+      }},
+      { id: 'youtube', name: '유튭', url: 'https://youtube.com', isCustom: false, pad: 0.12, bgKind: 'none', draw: (ctx) => {
+        roundRect(ctx, 6, 13, 52, 38, 10, '#ff0033');
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(26, 23); ctx.lineTo(26, 41); ctx.lineTo(42, 32); ctx.closePath(); ctx.fill();
+      }},
+      { id: 'ytm', name: 'YTM', url: 'https://music.youtube.com', isCustom: true, pad: 0.08, bgKind: 'none', draw: (ctx) => {
+        ctx.fillStyle = '#ff0033'; ctx.beginPath(); ctx.arc(32, 32, 24, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.arc(32, 32, 13.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(28.5, 25.5); ctx.lineTo(28.5, 38.5); ctx.lineTo(39.5, 32); ctx.closePath(); ctx.fill();
+      }},
+      { id: 'drive', name: '드라이브', url: 'https://drive.google.com', isCustom: false, pad: 0.08, bgKind: 'none', draw: (ctx) => {
+        ctx.lineWidth = 10.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#0F9D58'; ctx.beginPath(); ctx.moveTo(23, 11); ctx.lineTo(9, 40); ctx.stroke();
+        ctx.strokeStyle = '#FBBC04'; ctx.beginPath(); ctx.moveTo(26, 11); ctx.lineTo(54, 40); ctx.stroke();
+        ctx.strokeStyle = '#4285F4'; ctx.beginPath(); ctx.moveTo(12, 47); ctx.lineTo(52, 47); ctx.stroke();
+      }},
+      { id: 'gmail', name: 'GMail', url: 'https://mail.google.com', isCustom: false, pad: 0.10, bgKind: 'none', draw: (ctx) => {
+        ctx.lineWidth = 7.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#EA4335'; ctx.beginPath(); ctx.moveTo(9, 47); ctx.lineTo(9, 17); ctx.lineTo(32, 35); ctx.lineTo(55, 17); ctx.stroke();
+        ctx.strokeStyle = '#34A853'; ctx.beginPath(); ctx.moveTo(55, 17); ctx.lineTo(55, 47); ctx.stroke();
+        ctx.strokeStyle = '#4285F4'; ctx.beginPath(); ctx.moveTo(9, 26); ctx.lineTo(9, 47); ctx.stroke();
+      }},
+      { id: 'gemini1', name: '제미나이', url: 'https://gemini.google.com', isCustom: false, pad: 0.08, bgKind: 'none', draw: drawGemini },
+      { id: 'gemini2', name: '제미나이 u2', url: 'https://gemini.google.com/u/2', isCustom: false, pad: 0.08, bgKind: 'none', draw: drawGemini },
+      { id: 'claude', name: '클로드', url: 'https://claude.ai', isCustom: true, pad: 0.0, bgKind: 'none', draw: (ctx) => {
+        ctx.strokeStyle = '#d97757'; ctx.lineWidth = 4.2; ctx.lineCap = 'round';
+        for (let i = 0; i < 12; i++) {
+          const a = (i * Math.PI) / 6;
+          ctx.beginPath();
+          ctx.moveTo(32 + Math.cos(a) * 5, 32 + Math.sin(a) * 5);
+          ctx.lineTo(32 + Math.cos(a) * 30, 32 + Math.sin(a) * 30);
+          ctx.stroke();
+        }
+      }},
+      { id: 'notebooklm', name: 'NotebookLM', url: 'https://notebooklm.google.com', isCustom: true, pad: 0.0, bgKind: 'jpeg-white', draw: (ctx) => {
+        ctx.lineCap = 'butt';
+        const arcs = [[16.5, '#4285F4'], [11.2, '#669DF6'], [6.0, '#38bdf8']];
+        for (const [r, c] of arcs) {
+          ctx.strokeStyle = c; ctx.lineWidth = 2.8;
+          ctx.beginPath(); ctx.arc(32, 40, r, Math.PI, 0); ctx.stroke();
+        }
+      }},
+      { id: 'github', name: '깃헙', url: 'https://github.com', isCustom: false, pad: 0.0, bgKind: 'square-white', draw: (ctx) => {
+        ctx.fillStyle = '#1b1f23';
+        ctx.beginPath(); ctx.arc(32, 32, 21, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(32, 30, 9.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(23, 25); ctx.lineTo(25, 16); ctx.lineTo(30, 22); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(41, 25); ctx.lineTo(39, 16); ctx.lineTo(34, 22); ctx.fill();
+        ctx.fillRect(28, 38, 8, 11);
+      }},
+      { id: 'regex101', name: 'regex101', url: 'https://regex101.com', isCustom: true, pad: 0.08, bgKind: 'none', draw: (ctx) => {
+        roundRect(ctx, 4, 4, 56, 56, 6, '#3465a4');
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('R', 32, 33);
+      }},
+      { id: 'jetkvm', name: 'JetKVM', url: 'https://jetkvm.local', isCustom: true, pad: 0.02, bgKind: 'none', draw: (ctx) => {
+        roundRect(ctx, 4, 4, 56, 56, 12, '#1d4ed8');
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(32, 34, 10, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(24, 16, 16, 4);
+      }},
+      { id: 'kaggle', name: '캐글', url: 'https://kaggle.com', isCustom: true, pad: 0.04, bgKind: 'none', draw: (ctx) => {
+        const g = ctx.createLinearGradient(4, 4, 60, 60);
+        g.addColorStop(0, '#fde68a'); g.addColorStop(1, '#f59e0b');
+        roundRect(ctx, 4, 4, 56, 56, 10, g);
+        ctx.fillStyle = '#111827';
+        ctx.font = '900 34px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('k', 32, 33);
+      }},
+      { id: 'bigdata', name: '빅분기', url: 'https://dataq.or.kr', isCustom: true, pad: 0.08, bgKind: 'none', draw: (ctx) => {
+        ctx.strokeStyle = '#334155'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(28, 12); ctx.lineTo(28, 52); ctx.moveTo(46, 14); ctx.lineTo(30, 32); ctx.lineTo(46, 50); ctx.stroke();
+        ctx.fillStyle = '#0284c7'; ctx.fillRect(12, 22, 9, 9); ctx.fillRect(12, 35, 9, 9);
+      }},
+      { id: 'naver', name: '네이버', url: 'https://naver.com', isCustom: false, pad: 0.04, bgKind: 'none', draw: (ctx) => {
+        roundRect(ctx, 4, 4, 56, 56, 12, '#03c75a');
+        ctx.fillStyle = '#ffffff'; ctx.font = '900 32px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('N', 32, 34);
+      }},
+      { id: 'webstore', name: '웹 스토어 개발...', url: 'https://chrome.google.com/webstore', isCustom: false, pad: 0.02, bgKind: 'none', draw: (ctx) => {
+        ctx.fillStyle = '#EA4335'; ctx.beginPath(); ctx.arc(32, 32, 28, Math.PI * 1.15, Math.PI * 1.95); ctx.lineTo(32, 32); ctx.fill();
+        ctx.fillStyle = '#FBBC04'; ctx.beginPath(); ctx.arc(32, 32, 28, Math.PI * 1.95, Math.PI * 0.55); ctx.lineTo(32, 32); ctx.fill();
+        ctx.fillStyle = '#34A853'; ctx.beginPath(); ctx.arc(32, 32, 28, Math.PI * 0.55, Math.PI * 1.15); ctx.lineTo(32, 32); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(32, 32, 12, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#4285F4'; ctx.beginPath(); ctx.arc(32, 32, 9.5, 0, Math.PI * 2); ctx.fill();
+      }},
+    ];
+
+    function roundRect(ctx, x, y, w, h, r, fill) {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fill();
+    }
+
+    function drawNotion(ctx) {
+      // 실제 노션 아이콘처럼 어두운 타일에서도 외곽 윤곽이 묻히지 않도록 얇은 밝은 외곽 베벨을 함께 그린다
+      roundRect(ctx, 8, 8, 48, 48, 6, '#ffffff');
+      ctx.strokeStyle = '#191919';
+      ctx.lineWidth = 3.2;
+      ctx.strokeRect(10.5, 10.5, 43, 43);
+      ctx.fillStyle = '#191919';
+      ctx.font = 'bold 30px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('N', 32, 34);
+    }
+
+    function drawGemini(ctx) {
+      const g = ctx.createLinearGradient(8, 8, 56, 56);
+      g.addColorStop(0, '#ef4444');
+      g.addColorStop(0.35, '#eab308');
+      g.addColorStop(0.7, '#22c55e');
+      g.addColorStop(1, '#3b82f6');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(32, 5);
+      ctx.quadraticCurveTo(32, 32, 59, 32);
+      ctx.quadraticCurveTo(32, 32, 32, 59);
+      ctx.quadraticCurveTo(32, 32, 5, 32);
+      ctx.quadraticCurveTo(32, 32, 32, 5);
+      ctx.fill();
+    }
+
+    function buildRawIconData(spec) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const ctx = c.getContext('2d');
+
+      if (spec.bgKind === 'square-white' || spec.bgKind === 'jpeg-white') {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 64, 64);
+      }
+
+      // 각 spec.draw 내부 좌표에 이미 여백이 반영되어 있으므로 중복 축소(inset 이중 적용)하지 않는다
+      spec.draw(ctx);
+
+      if (spec.bgKind === 'jpeg-white') {
+        const imgData = ctx.getImageData(0, 0, 64, 64);
+        const d = imgData.data;
+        const isFg = new Uint8Array(64 * 64);
+        for (let i = 0; i < 64 * 64; i++) {
+          if (d[i * 4] < 240 || d[i * 4 + 1] < 240 || d[i * 4 + 2] < 240) isFg[i] = 1;
+        }
+        for (let y = 1; y < 63; y++) {
+          for (let x = 1; x < 63; x++) {
+            const idx = y * 64 + x;
+            if (isFg[idx]) continue;
+            let nearFg = 0;
+            for (let dy = -2; dy <= 2; dy++) {
+              for (let dx = -2; dx <= 2; dx++) {
+                if (isFg[(y + dy) * 64 + (x + dx)]) nearFg++;
+              }
+            }
+            if (nearFg > 0) {
+              const ring = ((x * 17 + y * 31) % 19) - 12;
+              d[idx * 4] = Math.min(255, Math.max(226, 246 + ring));
+              d[idx * 4 + 1] = Math.min(255, Math.max(228, 247 + ring));
+              d[idx * 4 + 2] = Math.min(255, Math.max(232, 250 - ring));
+            }
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+
+      return {
+        canvas: c,
+        dataUrl: c.toDataURL('image/png'),
+      };
+    }
+
+    // =========================================================================
+    // 2. 비파괴 아이콘 정제 파이프라인
+    //    - 1단계 (알파 게이트): 캔버스 네 귀퉁이와 외곽 테두리가 이미 투명(알파)이면
+    //      배경색이 없는 아이콘이므로 배경 제거 게이트를 즉시 통과한다! (유튜브·swea·네이버·regex101·JetKVM·캐글 등 100% 보존)
+    //    - 2단계 (배지 보호 가드): 캔버스 외곽이 불투명 단색이라도, 침식(Erode)된 내부 본체 코어가
+    //      무채색(흰색·검은색 글자)이고 외곽이 유채색이면 브랜드 배지이므로 배경 제거를 차단한다.
+    //    - 3단계 (정밀 배경 제거): 8방향 Flood Fill + 인접 전경 코어 색상(C_fg) 복원으로
+    //      JPEG 모기 노이즈와 경계 회색 테두리(Halo)를 0%로 제거한다.
+    //    - 4단계 (여백 크롭 · 비대칭 무게중심 · 광학 보정 · 테마 대비 리프트)
+    // =========================================================================
+    function colorDist(r1, g1, b1, r2, g2, b2) {
+      const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+      return Math.sqrt(0.3 * dr * dr + 0.59 * dg * dg + 0.11 * db * db);
+    }
+
+    function relLuminance(r, g, b) {
+      const f = (v) => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+    }
+
+    // 배경색(bgR, bgG, bgB) 대비 현재 픽셀(r, g, b)이 가질 수 있는 최소 고유 불투명도(Color-to-Alpha 수식)
+    // 노랑(251,188,5)처럼 밝은 원색도 B=5 채널 덕분에 고유 알파가 0.98로 계산되어 반투명 픽셀로 오판되지 않는다!
+    function intrinsicAlphaAgainstBg(r, g, b, bgR, bgG, bgB) {
+      const ar = r < bgR ? (bgR - r) / Math.max(1, bgR) : r > bgR ? (r - bgR) / Math.max(1, 255 - bgR) : 0;
+      const ag = g < bgG ? (bgG - g) / Math.max(1, bgG) : g > bgG ? (g - bgG) / Math.max(1, 255 - bgG) : 0;
+      const ab = b < bgB ? (bgB - b) / Math.max(1, bgB) : b > bgB ? (b - bgB) / Math.max(1, 255 - bgB) : 0;
+      return Math.max(ar, ag, ab);
+    }
+
+    function runNonDestructivePipeline(srcCanvas, {
+      removeBg = true,
+      trimAlpha = true,
+      opticalSize = true,
+      themeAdapt = 'none',
+      currentTheme = 'dark',
+    } = {}) {
+      const W = 64, H = 64;
+      const work = document.createElement('canvas');
+      work.width = W; work.height = H;
+      const ctx = work.getContext('2d');
+      ctx.drawImage(srcCanvas, 0, 0, W, H);
+      const imgData = ctx.getImageData(0, 0, W, H);
+      const d = imgData.data;
+      const orig = new Uint8ClampedArray(d);
+
+      // [Gate 1: 캔버스 외곽 테두리 알파 게이트]
+      // 이미 외곽 배경이 투명(알파)인 아이콘은 절대 배경 제거 대상이 아니다!
+      const borderIdx = [];
+      for (let x = 0; x < W; x++) borderIdx.push(x, (H - 1) * W + x);
+      for (let y = 1; y < H - 1; y++) borderIdx.push(y * W, y * W + (W - 1));
+
+      const corners = [0, W - 1, (H - 1) * W, (H - 1) * W + (W - 1)];
+      let cornerR = 0, cornerG = 0, cornerB = 0, opaqueCorners = 0;
+      for (const cIdx of corners) {
+        if (d[cIdx * 4 + 3] >= 240) {
+          cornerR += d[cIdx * 4];
+          cornerG += d[cIdx * 4 + 1];
+          cornerB += d[cIdx * 4 + 2];
+          opaqueCorners++;
+        }
+      }
+
+      let hasSolidOuterBg = false;
+      let bgR = 255, bgG = 255, bgB = 255;
+
+      if (opaqueCorners >= 3) {
+        bgR = Math.round(cornerR / opaqueCorners);
+        bgG = Math.round(cornerG / opaqueCorners);
+        bgB = Math.round(cornerB / opaqueCorners);
+
+        let matchingBorder = 0;
+        for (const bIdx of borderIdx) {
+          if (d[bIdx * 4 + 3] >= 240) {
+            const dist = colorDist(d[bIdx * 4], d[bIdx * 4 + 1], d[bIdx * 4 + 2], bgR, bgG, bgB);
+            if (dist <= 22) matchingBorder++;
+          }
+        }
+        if (matchingBorder / borderIdx.length >= 0.78) {
+          hasSolidOuterBg = true;
+        }
+      }
+
+      const bgChroma = Math.max(bgR, bgG, bgB) - Math.min(bgR, bgG, bgB);
+      const isAchromaticBg = bgChroma <= 18;
+
+      // 외곽 테두리에서 시작하는 8방향 Flood Fill (고유 알파 <= 0.14인 배경·JPEG 링잉·호 사이 빈틈 관통)
+      const bgAlphaTol = 0.14;
+      const bgMask = new Uint8Array(W * H);
+      const queue = new Int32Array(W * H);
+      let qHead = 0, qTail = 0;
+
+      if (hasSolidOuterBg) {
+        for (const bIdx of borderIdx) {
+          if (bgMask[bIdx]) continue;
+          const ia = intrinsicAlphaAgainstBg(d[bIdx * 4], d[bIdx * 4 + 1], d[bIdx * 4 + 2], bgR, bgG, bgB);
+          if (d[bIdx * 4 + 3] < 20 || ia <= bgAlphaTol) {
+            bgMask[bIdx] = 1;
+            queue[qTail++] = bIdx;
+          }
+        }
+        while (qHead < qTail) {
+          const cur = queue[qHead++];
+          const cx = cur % W, cy = (cur / W) | 0;
+          const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+          for (const [dx, dy] of dirs) {
+            const nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+            const nb = ny * W + nx;
+            if (bgMask[nb]) continue;
+            const r = d[nb * 4], g = d[nb * 4 + 1], b = d[nb * 4 + 2];
+            const ia = intrinsicAlphaAgainstBg(r, g, b, bgR, bgG, bgB);
+            if (ia <= bgAlphaTol) {
+              bgMask[nb] = 1;
+              queue[qTail++] = nb;
+            }
+          }
+        }
+      }
+
+      // [Gate 2: 침식된 내부 코어 채도 기반 배지 보호 가드]
+      let fgCount = 0, coreFgCount = 0, coreFgChromaSum = 0, totalOpaque = 0;
+      for (let y = 1; y < H - 1; y++) {
+        for (let x = 1; x < W - 1; x++) {
+          const i = y * W + x;
+          if (d[i * 4 + 3] >= 180) totalOpaque++;
+          if (!bgMask[i] && d[i * 4 + 3] >= 180) {
+            fgCount++;
+            if (!bgMask[i - 1] && !bgMask[i + 1] && !bgMask[i - W] && !bgMask[i + W]) {
+              const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+              coreFgCount++;
+              coreFgChromaSum += Math.max(r, g, b) - Math.min(r, g, b);
+            }
+          }
+        }
+      }
+      const avgCoreChroma = coreFgCount > 0 ? coreFgChromaSum / coreFgCount : 0;
+      const fgAreaRatio = fgCount / Math.max(1, totalOpaque);
+
+      const isMeaningfulChromaticBadge =
+        hasSolidOuterBg && !isAchromaticBg && avgCoreChroma <= 28;
+
+      const shouldRemoveOuterBg =
+        hasSolidOuterBg &&
+        !isMeaningfulChromaticBadge &&
+        fgAreaRatio >= 0.06 &&
+        fgAreaRatio <= 0.80;
+
+      if (removeBg && shouldRemoveOuterBg) {
+        // 형태학적 1px 고립 부스러기(JPEG 모기 노이즈) 흡수
+        for (let pass = 0; pass < 2; pass++) {
+          for (let y = 1; y < H - 1; y++) {
+            for (let x = 1; x < W - 1; x++) {
+              const idx = y * W + x;
+              if (bgMask[idx]) continue;
+              let bgN = 0;
+              for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                  if (dx === 0 && dy === 0) continue;
+                  if (bgMask[(y + dy) * W + (x + dx)]) bgN++;
+                }
+              }
+              if (bgN >= 6) bgMask[idx] = 1;
+            }
+          }
+        }
+
+        for (let i = 0; i < W * H; i++) {
+          if (bgMask[i]) d[i * 4 + 3] = 0;
+        }
+
+        // [2px 경계 공선성(Collinear) + 채널 단조성 언믹싱]:
+        // - 안티앨리어싱 경계는 곡선에서 최대 2px 두께로 형성되므로 반경 2px까지 검사하되,
+        // - 이웃 픽셀 Q가 현재 픽셀 P와 배경(bg)을 잇는 동일 색상 반직선(cos >= 0.985) 위에 있고
+        //   R·G·B 모든 채널에서 P가 Q보다 배경색에 더 가까울 때만 배경 혼합 픽셀로 판정해 언믹싱한다.
+        // - 이를 통해 깃헙·미팅싸피의 2번째 링 회색 톱니(자글거림)를 100% 제거하면서,
+        //   16기 일정(구글 G)의 빨강-노랑-초록-파랑 내부 색상 경계는 1px도 건드리지 않는다!
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const idx = y * W + x;
+            if (bgMask[idx]) continue;
+
+            let minBgDist = 99;
+            for (let dy = -2; dy <= 2; dy++) {
+              for (let dx = -2; dx <= 2; dx++) {
+                const nx = x + dx, ny = y + dy;
+                if (nx < 0 || nx >= W || ny < 0 || ny >= H || bgMask[ny * W + nx]) {
+                  const cheb = Math.max(Math.abs(dx), Math.abs(dy));
+                  if (cheb < minBgDist) minBgDist = cheb;
+                }
+              }
+            }
+            if (minBgDist > 2) continue;
+
+            const obsR = orig[idx * 4], obsG = orig[idx * 4 + 1], obsB = orig[idx * 4 + 2];
+            const vx = obsR - bgR, vy = obsG - bgG, vz = obsB - bgB;
+            const vNorm = Math.hypot(vx, vy, vz);
+            const ia = intrinsicAlphaAgainstBg(obsR, obsG, obsB, bgR, bgG, bgB);
+
+            if (minBgDist === 1 && ia <= 0.18) {
+              d[idx * 4 + 3] = 0;
+              continue;
+            }
+            if (vNorm < 4) {
+              d[idx * 4 + 3] = 0;
+              continue;
+            }
+
+            let bestNorm = vNorm;
+            let coreR = obsR, coreG = obsG, coreB = obsB;
+            let foundCore = false;
+
+            for (let dy = -2; dy <= 2; dy++) {
+              for (let dx = -2; dx <= 2; dx++) {
+                const nx = x + dx, ny = y + dy;
+                if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+                const nIdx = ny * W + nx;
+                if (bgMask[nIdx]) continue;
+                const nr = orig[nIdx * 4], ng = orig[nIdx * 4 + 1], nb = orig[nIdx * 4 + 2];
+                const nvx = nr - bgR, nvy = ng - bgG, nvz = nb - bgB;
+                const nNorm = Math.hypot(nvx, nvy, nvz);
+                if (nNorm <= bestNorm + 2) continue;
+
+                // 채널 단조성: 모든 채널에서 P가 Q보다 배경색에 더 가까워야 진짜 배경 혼합 픽셀이다
+                if (
+                  Math.abs(vx) <= Math.abs(nvx) + 3 &&
+                  Math.abs(vy) <= Math.abs(nvy) + 3 &&
+                  Math.abs(vz) <= Math.abs(nvz) + 3
+                ) {
+                  const cos = (vx * nvx + vy * nvy + vz * nvz) / (vNorm * nNorm);
+                  if (cos >= 0.985) {
+                    bestNorm = nNorm;
+                    coreR = nr; coreG = ng; coreB = nb;
+                    foundCore = true;
+                  }
+                }
+              }
+            }
+
+            if (foundCore) {
+              const alphaCov = Math.min(1, vNorm / bestNorm);
+              const floor = minBgDist === 1 ? 0.14 : 0.04;
+              if (alphaCov <= floor) {
+                d[idx * 4 + 3] = 0;
+              } else {
+                d[idx * 4]     = coreR;
+                d[idx * 4 + 1] = coreG;
+                d[idx * 4 + 2] = coreB;
+                const outAlpha = Math.min(1, (alphaCov - floor) / (1 - floor));
+                d[idx * 4 + 3] = Math.round(outAlpha * 255);
+              }
+            }
+          }
+        }
+      }
+
+      // [배경이 실제로 제거된 아이콘의 다크모드 저대비 판별 및 비파괴 보정 (themeAdapt)]
+      // - 싸피·내 노션처럼 원래부터 투명 배경이던 아이콘(shouldRemoveOuterBg === false)은 절대 건드리지 않는다!
+      // - 흰 배경이 제거된 뒤 외곽 실루엣 둘레의 평균 휘도가 어두운 타일(#191d23)과 충돌하는 아이콘(미팅싸피, 깃헙)만 보정 대상이 된다.
+      let outerPerimCount = 0, outerPerimLumSum = 0, innerBrightCount = 0, totalFgAfter = 0;
+      for (let y = 1; y < H - 1; y++) {
+        for (let x = 1; x < W - 1; x++) {
+          const i = y * W + x;
+          const a = d[i * 4 + 3];
+          if (a < 80) continue;
+          totalFgAfter++;
+          const lum = relLuminance(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]);
+          if (lum > 0.5) innerBrightCount++;
+          if (d[(i - 1) * 4 + 3] < 40 || d[(i + 1) * 4 + 3] < 40 || d[(i - W) * 4 + 3] < 40 || d[(i + W) * 4 + 3] < 40) {
+            outerPerimCount++;
+            outerPerimLumSum += lum;
+          }
+        }
+      }
+      const outerPerimAvgLum = outerPerimCount > 0 ? outerPerimLumSum / outerPerimCount : 1;
+      const hasBrightInnerCutout = totalFgAfter > 0 && (innerBrightCount / totalFgAfter) >= 0.12;
+      const clashesWithDarkTheme =
+        removeBg && shouldRemoveOuterBg && outerPerimCount > 0 && outerPerimAvgLum < 0.05;
+
+      let appliedThemeAdapt = 'none';
+      const isExplicitAdapt = themeAdapt === 'luma-lift' || themeAdapt === 'invert-mark' || themeAdapt === 'keyline';
+      if (currentTheme === 'dark' && themeAdapt !== 'none' && (clashesWithDarkTheme || isExplicitAdapt)) {
+        const modeToApply = themeAdapt === 'auto'
+          ? (hasBrightInnerCutout ? 'invert-mark' : 'luma-lift')
+          : themeAdapt;
+
+        if (modeToApply === 'invert-mark') {
+          appliedThemeAdapt = 'invert-mark';
+          for (let i = 0; i < W * H; i++) {
+            if (d[i * 4 + 3] === 0) continue;
+            d[i * 4]     = Math.max(25, 255 - d[i * 4]);
+            d[i * 4 + 1] = Math.max(29, 255 - d[i * 4 + 1]);
+            d[i * 4 + 2] = Math.max(35, 255 - d[i * 4 + 2]);
+          }
+        } else if (modeToApply === 'luma-lift') {
+          appliedThemeAdapt = 'luma-lift';
+          for (let i = 0; i < W * H; i++) {
+            if (d[i * 4 + 3] === 0) continue;
+            const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+            const lum = relLuminance(r, g, b);
+            if (lum < 0.25) {
+              d[i * 4]     = Math.min(255, Math.round(68 + r * 1.45));
+              d[i * 4 + 1] = Math.min(255, Math.round(112 + g * 1.65));
+              d[i * 4 + 2] = Math.min(255, Math.round(158 + b * 1.35));
+            }
+          }
+        } else if (modeToApply === 'keyline') {
+          appliedThemeAdapt = 'keyline';
+          const snap = new Uint8ClampedArray(d);
+          for (let y = 1; y < H - 1; y++) {
+            for (let x = 1; x < W - 1; x++) {
+              const idx = y * W + x;
+              if (snap[idx * 4 + 3] > 180) continue;
+              let maxNeighborA = 0;
+              for (const nb of [idx - 1, idx + 1, idx - W, idx + W]) {
+                if (snap[nb * 4 + 3] > maxNeighborA) maxNeighborA = snap[nb * 4 + 3];
+              }
+              if (maxNeighborA >= 140 && snap[idx * 4 + 3] < 120) {
+                d[idx * 4]     = 165;
+                d[idx * 4 + 1] = 192;
+                d[idx * 4 + 2] = 230;
+                d[idx * 4 + 3] = Math.max(snap[idx * 4 + 3], 145);
+              }
+            }
+          }
+        }
+      }
+
+      // 외곽 투명 여백 측정 + 비대칭 무게중심 보정
+      let minX = W, maxX = -1, minY = H, maxY = -1, opaquePx = 0;
+      let sumX = 0, sumY = 0, sumWeight = 0;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const a = d[(y * W + x) * 4 + 3];
+          if (a > 24) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+            if (a > 128) opaquePx++;
+            sumX += x * a;
+            sumY += y * a;
+            sumWeight += a;
+          }
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+
+      const bboxW = maxX >= minX ? maxX - minX + 1 : W;
+      const bboxH = maxY >= minY ? maxY - minY + 1 : H;
+      const maxSpan = Math.max(bboxW, bboxH);
+      const minSpan = Math.max(1, Math.min(bboxW, bboxH));
+      const emptyMarginRatio = Math.max(0, 1 - maxSpan / W);
+
+      // 각 행(row)의 좌우 끝 사이를 채운 외곽 실루엣 면적으로 형태 밀도(silhouetteDensity)를 구한다
+      let silhouetteArea = 0;
+      if (maxX >= minX) {
+        for (let y = minY; y <= maxY; y++) {
+          let rowL = -1, rowR = -1;
+          for (let x = minX; x <= maxX; x++) {
+            if (d[(y * W + x) * 4 + 3] > 64) {
+              if (rowL === -1) rowL = x;
+              rowR = x;
+            }
+          }
+          if (rowL !== -1) silhouetteArea += (rowR - rowL + 1);
+        }
+      }
+      const silhouetteDensity = Math.max(0.45, Math.min(1, silhouetteArea / Math.max(1, bboxW * bboxH)));
+      const aspectRatio = maxSpan / minSpan;
+      const fillRatio = opaquePx / Math.max(1, bboxW * bboxH);
+
+      // [연속 등면적 광학 보정 (Continuous Equal-Area Normalization)]
+      const equalAreaTargetSpan = Math.max(
+        0.86,
+        Math.min(1.0, 0.88 * ((0.95 / silhouetteDensity) ** 0.24) * (aspectRatio ** 0.28))
+      );
+      const opticalFactor = opticalSize ? Number(equalAreaTargetSpan.toFixed(2)) : 0.94;
+      const isSquareBadge = silhouetteDensity > 0.88 && aspectRatio < 1.15;
+
+      const bboxCx = (minX + maxX) / 2;
+      const bboxCy = (minY + maxY) / 2;
+      const massCx = sumWeight > 0 ? sumX / sumWeight : bboxCx;
+      const massCy = sumWeight > 0 ? sumY / sumWeight : bboxCy;
+      const asymmetryPx = Math.hypot(massCx - bboxCx, massCy - bboxCy);
+
+      const skipResample = !shouldRemoveOuterBg && !trimAlpha && !opticalSize;
+
+      const out = document.createElement('canvas');
+      out.width = W; out.height = H;
+      const outCtx = out.getContext('2d');
+      outCtx.imageSmoothingQuality = 'high';
+
+      if ((trimAlpha || opticalSize) && maxX >= minX && !skipResample) {
+        const baseSpan = trimAlpha ? Math.max(bboxW, bboxH) : W;
+        const targetSide = W * (trimAlpha ? opticalFactor : 1.0);
+        const scale = targetSide / baseSpan;
+        const srcX = trimAlpha ? minX : 0;
+        const srcY = trimAlpha ? minY : 0;
+        const srcW = trimAlpha ? bboxW : W;
+        const srcH = trimAlpha ? bboxH : H;
+        const drawW = srcW * scale;
+        const drawH = srcH * scale;
+
+        const shiftX = trimAlpha ? (bboxCx - massCx) * scale * 0.55 : 0;
+        const shiftY = trimAlpha ? (bboxCy - massCy) * scale * 0.55 : 0;
+        const dx = Math.max(0, Math.min(W - drawW, (W - drawW) / 2 + shiftX));
+        const dy = Math.max(0, Math.min(H - drawH, (H - drawH) / 2 + shiftY));
+
+        outCtx.drawImage(work, srcX, srcY, srcW, srcH, dx, dy, drawW, drawH);
+      } else {
+        outCtx.drawImage(work, 0, 0);
+      }
+
+      const drawnW = trimAlpha ? (bboxW / maxSpan) * opticalFactor : bboxW / W;
+      const drawnH = trimAlpha ? (bboxH / maxSpan) * opticalFactor : bboxH / H;
+      const finalSpanRatio = Math.sqrt(drawnW * drawnH * silhouetteDensity);
+
+      const effectStack = {
+        bgRemove: shouldRemoveOuterBg
+          ? { enabled: removeBg, color: `rgb(${bgR},${bgG},${bgB})` }
+          : { enabled: false, reason: !hasSolidOuterBg ? 'already-transparent-bg' : isMeaningfulChromaticBadge ? 'meaningful-chromatic-badge' : 'no-outer-bg' },
+        trim: {
+          enabled: trimAlpha && !skipResample,
+          marginPct: Math.round(emptyMarginRatio * 100),
+          opticalScale: opticalFactor,
+          asymmetricShiftPx: Number(asymmetryPx.toFixed(1)),
+        },
+        themeAdapt: {
+          policy: themeAdapt,
+          darkClash: clashesWithDarkTheme,
+          activeOnCurrentTheme: appliedThemeAdapt,
+        },
+      };
+
+      return {
+        canvas: out,
+        dataUrl: out.toDataURL('image/png'),
+        shouldRemoveOuterBg,
+        isAchromaticBg,
+        isMeaningfulChromaticBadge,
+        alreadyFullBleed: skipResample,
+        emptyMarginRatio,
+        fillRatio,
+        asymmetryPx,
+        clashesWithDarkTheme,
+        appliedThemeAdapt,
+        finalSpanRatio,
+        effectStack,
+        recommended: shouldRemoveOuterBg || emptyMarginRatio >= 0.08 || isSquareBadge || asymmetryPx >= 1.8,
+      };
+    }
+
+    // =========================================================================
+    // 3. 상태 관리 (아이콘별 개별 설정 perIconConfigs + 전역 화면 설정)
+    // =========================================================================
+    const rawIcons = new Map();
+    const bakedIcons = new Map();
+    const perIconConfigs = new Map();
+
+    function buildDefaultIconConfig(specId) {
+      const raw = rawIcons.get(specId);
+      const probe = runNonDestructivePipeline(raw.canvas, {
+        removeBg: true,
+        trimAlpha: true,
+        opticalSize: true,
+        themeAdapt: 'auto',
+        currentTheme: 'dark',
+      });
+      return {
+        enabled: false,
+        bgRemove: probe.shouldRemoveOuterBg,
+        trimAlpha: true,
+        opticalSize: true,
+        themeAdapt: probe.clashesWithDarkTheme ? 'auto' : 'none',
+        recommended: probe.recommended,
+        shouldRemoveOuterBg: probe.shouldRemoveOuterBg,
+        isMeaningfulChromaticBadge: probe.isMeaningfulChromaticBadge,
+        emptyMarginRatio: probe.emptyMarginRatio,
+        asymmetryPx: probe.asymmetryPx,
+        clashesWithDarkTheme: probe.clashesWithDarkTheme,
+      };
+    }
+
+    function initRawIcons() {
+      rawIcons.clear();
+      bakedIcons.clear();
+      perIconConfigs.clear();
+      for (const spec of TILE_SPECS) {
+        rawIcons.set(spec.id, buildRawIconData(spec));
+        perIconConfigs.set(spec.id, buildDefaultIconConfig(spec.id));
+      }
+    }
+    initRawIcons();
+
+    const pgState = {
+      unifiedScale: false,
+      tileSize: 'md',
+      iconScale: 50,
+      showGuides: false,
+      showLabel: true,
+      hoverLabel: true,
+      suppressTitle: true,
+      legibility: 'dim',
+      theme: 'dark',
+      previewBg: 'dark',
+      isBaked: false,
+      selectedTileId: 'mattermost',
+    };
+
+    function drawAuroraBackground() {
+      const canvas = document.getElementById('bg-canvas');
+      const w = (canvas.width = window.innerWidth);
+      const h = (canvas.height = window.innerHeight);
+      const ctx = canvas.getContext('2d');
+      const isLight = pgState.theme === 'light';
+      document.documentElement.dataset.theme = pgState.theme;
+      document.documentElement.dataset.legibility = pgState.legibility;
+      document.documentElement.style.setProperty('--dim', isLight ? '0.18' : '0.32');
+
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      if (isLight) {
+        g.addColorStop(0, '#cfe5f7');
+        g.addColorStop(0.45, '#f2f7fc');
+        g.addColorStop(1, '#d8ebf9');
+      } else {
+        g.addColorStop(0, '#0f1720');
+        g.addColorStop(0.5, '#192534');
+        g.addColorStop(1, '#111a24');
+      }
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    function renderStage() {
+      const stage = document.getElementById('stage');
+      stage.dataset.unifiedScale = String(pgState.unifiedScale);
+      stage.dataset.showGuides = String(pgState.showGuides);
+      stage.dataset.showLabel = String(pgState.showLabel);
+      stage.dataset.hoverLabel = String(pgState.hoverLabel);
+      document.documentElement.dataset.size = pgState.tileSize;
+      document.documentElement.dataset.legibility = pgState.legibility;
+      document.documentElement.style.setProperty('--icon-scale', pgState.iconScale + '%');
+
+      document.getElementById('row-hover-sub').hidden = pgState.showLabel;
+      document.getElementById('row-suppress-title').hidden = pgState.showLabel;
+
+      const grid = document.getElementById('pg-grid');
+      const frag = document.createDocumentFragment();
+
+      for (const spec of TILE_SPECS) {
+        const cfg = perIconConfigs.get(spec.id);
+        const isActive = cfg?.enabled === true;
+        let displayUrl;
+        let effectivePct;
+        let stackObj;
+
+        if (pgState.isBaked && bakedIcons.has(spec.id)) {
+          const baked = bakedIcons.get(spec.id);
+          displayUrl = baked.dataUrl;
+          effectivePct = baked.effectivePct;
+          stackObj = { baked: true, bakedUnderTheme: baked.bakedTheme, warning: '원본 및 비파괴 스택이 소실되어 테마 전환에 반응하지 않습니다.' };
+        } else {
+          const raw = rawIcons.get(spec.id);
+          const res = runNonDestructivePipeline(raw.canvas, {
+            removeBg: isActive && cfg.bgRemove,
+            trimAlpha: isActive && cfg.trimAlpha,
+            opticalSize: isActive && cfg.opticalSize,
+            themeAdapt: isActive ? cfg.themeAdapt : 'none',
+            currentTheme: pgState.theme,
+          });
+          displayUrl = isActive ? res.dataUrl : raw.dataUrl;
+          const containerPct = pgState.unifiedScale ? pgState.iconScale : (spec.isCustom || isActive ? 62 : 50);
+          effectivePct = Math.round(containerPct * (isActive ? res.finalSpanRatio : (1 - spec.pad * 2) * (spec.bgKind !== 'none' ? 0.58 : 1)));
+          stackObj = { id: spec.id, name: spec.name, enabled: isActive, ...res.effectStack };
+        }
+
+        if (spec.id === pgState.selectedTileId) {
+          document.getElementById('stack-json-view').textContent = JSON.stringify(stackObj, null, 2);
+        }
+
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.dataset.id = spec.id;
+
+        const a = document.createElement('a');
+        a.className = 'link';
+        a.href = '#';
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          pgState.selectedTileId = spec.id;
+          renderStage();
+        });
+
+        const shouldSuppressNativeTitle = !pgState.showLabel && pgState.suppressTitle;
+        if (!shouldSuppressNativeTitle) {
+          a.title = `${spec.name}\n${spec.url}`;
+        }
+        a.setAttribute('aria-label', spec.name);
+
+        const ic = document.createElement('span');
+        ic.className = 'ic glass';
+        const img = new Image();
+        img.src = displayUrl;
+        if (spec.isCustom || isActive) img.className = 'custom';
+        ic.append(img);
+
+        const metric = document.createElement('span');
+        metric.className = 'tile-metric-tag';
+        metric.textContent = `${effectivePct}%`;
+        ic.append(metric);
+
+        const lb = document.createElement('span');
+        lb.className = 'lb';
+        lb.textContent = spec.name;
+
+        a.append(ic, lb);
+        if (spec.badgeNew) {
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          a.append(badge);
+        }
+        tile.append(a);
+        frag.append(tile);
+      }
+
+      const add = document.createElement('div');
+      add.className = 'tile add';
+      add.innerHTML = `<a class="link" href="#" onclick="event.preventDefault()"><span class="ic glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="lb">추가</span></a>`;
+      frag.append(add);
+
+      grid.replaceChildren(frag);
+
+      const activeCount = [...perIconConfigs.values()].filter((c) => c.enabled).length;
+      document.getElementById('cleaned-count-badge').textContent =
+        pgState.isBaked ? '베이킹 고정됨' : activeCount > 0 ? `${activeCount}개 적용됨` : '적용 전';
+      const storageBadge = document.getElementById('storage-mode-badge');
+      storageBadge.textContent = pgState.isBaked ? '베이킹됨' : '비파괴 스택';
+      storageBadge.classList.toggle('warn', pgState.isBaked);
+
+      document.getElementById('scale-readout').textContent =
+        pgState.unifiedScale ? `아이콘 ${pgState.iconScale}%` : '자동 50% / 수동 62%';
+      const labelModeText = pgState.showLabel ? '항상 표시' : (pgState.hoverLabel ? '호버 시 표시' : '표시 안 함');
+      document.getElementById('label-mode-badge').textContent = labelModeText;
+
+      const legMap = { shadow: '그림자 효과', dim: '배경 막', card: '반투명 카드' };
+      const sizeMap = { sm: '작게', md: '보통', lg: '크게' };
+      const themeMap = { dark: '어둡게', light: '밝게' };
+      document.getElementById('sum-legibility').textContent = `${labelModeText} · ${legMap[pgState.legibility]}`;
+      document.getElementById('sum-display').textContent = `${themeMap[pgState.theme]} · ${sizeMap[pgState.tileSize]} · 아이콘 ${pgState.iconScale}%`;
+    }
+
+    // =========================================================================
+    // 4. 단계별 프리셋 (0 ~ 4)
+    // =========================================================================
+    const STEP_CAPTIONS = {
+      0: '0단계 (원본 상태): 자동(50%)·수동(62%) 이중 규격과 외곽 흰 배경, 투명 여백 편차가 그대로 있는 상태입니다.',
+      1: '1단계 (표시 상자 통일): 자동/수동 구분을 없애고 모든 타일 아이콘 표시 영역을 기본값(50%)으로 통일했습니다.',
+      2: '2단계 (배경색 정밀 제거): 이미 투명 배경인 아이콘은 건드리지 않고, 외곽 흰 배경이 있는 4종(16기 일정, 미팅싸피, NotebookLM, 깃헙)의 배경만 제거했습니다.',
+      3: '3단계 (여백 재단 · 등면적 광학 · 대비 보정): 외곽 빈 여백을 크롭하고, 정사각형·원형·가로형 아이콘의 체감 면적(등면적)을 맞추며, 배경이 제거되어 어두워진 미팅싸피·깃헙에 비파괴 다크모드 대비 보정을 적용했습니다.',
+      4: '4단계 (이름 숨김 · 타일 확장): 이름이 차지하던 공간을 타일 상자(.ic: 56px→64px)가 적당히 물려받고, 호버 시에는 기존 .lb 스타일 그대로 아이콘 아래 정중앙에 이름이 나타납니다.',
+    };
+
+    function applyJourneyStep(step) {
+      document.querySelectorAll('#journey-steps .pg-step-btn').forEach((b) => {
+        b.setAttribute('aria-pressed', String(Number(b.dataset.step) === step));
+      });
+      document.getElementById('journey-caption').textContent = STEP_CAPTIONS[step];
+      pgState.isBaked = false;
+      bakedIcons.clear();
+
+      if (step === 0) {
+        pgState.unifiedScale = false;
+        pgState.showLabel = true;
+        for (const cfg of perIconConfigs.values()) cfg.enabled = false;
+      } else if (step === 1) {
+        pgState.unifiedScale = true;
+        pgState.showLabel = true;
+        for (const cfg of perIconConfigs.values()) cfg.enabled = false;
+      } else if (step === 2) {
+        pgState.unifiedScale = true;
+        pgState.showLabel = true;
+        for (const cfg of perIconConfigs.values()) {
+          cfg.enabled = cfg.shouldRemoveOuterBg;
+          cfg.bgRemove = cfg.shouldRemoveOuterBg;
+          cfg.trimAlpha = false;
+          cfg.opticalSize = false;
+          cfg.themeAdapt = 'none';
+        }
+      } else if (step === 3) {
+        pgState.unifiedScale = true;
+        pgState.showLabel = true;
+        for (const cfg of perIconConfigs.values()) {
+          cfg.enabled = true;
+          cfg.bgRemove = cfg.shouldRemoveOuterBg;
+          cfg.trimAlpha = true;
+          cfg.opticalSize = true;
+          cfg.themeAdapt = cfg.clashesWithDarkTheme ? 'auto' : 'none';
+        }
+      } else if (step === 4) {
+        pgState.unifiedScale = true;
+        pgState.showLabel = false;
+        pgState.hoverLabel = true;
+        for (const cfg of perIconConfigs.values()) {
+          cfg.enabled = true;
+          cfg.bgRemove = cfg.shouldRemoveOuterBg;
+          cfg.trimAlpha = true;
+          cfg.opticalSize = true;
+          cfg.themeAdapt = cfg.clashesWithDarkTheme ? 'auto' : 'none';
+        }
+      }
+      syncControls();
+      renderStage();
+    }
+
+    function syncControls() {
+      document.getElementById('chk-unified-scale').checked = pgState.unifiedScale;
+      document.getElementById('chk-show-guides').checked = pgState.showGuides;
+      document.getElementById('rng-icon-scale').value = String(pgState.iconScale);
+      document.getElementById('lbl-icon-scale').textContent = pgState.iconScale + '%';
+      document.getElementById('chk-show-label').checked = pgState.showLabel;
+      document.getElementById('chk-hover-label').checked = pgState.hoverLabel;
+      document.getElementById('chk-suppress-title').checked = pgState.suppressTitle;
+      document.getElementById('sel-legibility').value = pgState.legibility;
+    }
+
+    // =========================================================================
+    // 5. 검사기 모달 (일괄 설정 + 아이콘별 개별 설정 동시 지원) & 베이킹 모달
+    // =========================================================================
+    const draftConfigs = new Map();
+    const batchState = { bgRemove: true, trimAlpha: true, opticalSize: true, themeAdapt: 'auto' };
+
+    function openInspectorModal() {
+      draftConfigs.clear();
+      const anyAlreadyEnabled = [...perIconConfigs.values()].some((c) => c.enabled);
+
+      for (const spec of TILE_SPECS) {
+        const base = perIconConfigs.get(spec.id);
+        draftConfigs.set(spec.id, {
+          ...base,
+          enabled: anyAlreadyEnabled ? base.enabled : base.recommended,
+          bgRemove: anyAlreadyEnabled ? base.bgRemove : base.shouldRemoveOuterBg,
+          trimAlpha: anyAlreadyEnabled ? base.trimAlpha : true,
+          opticalSize: anyAlreadyEnabled ? base.opticalSize : true,
+          themeAdapt: anyAlreadyEnabled ? base.themeAdapt : (base.clashesWithDarkTheme ? 'auto' : 'none'),
+        });
+      }
+
+      renderInspectorCards();
+      document.getElementById('inspector-dlg').showModal();
+    }
+
+    function renderInspectorCards() {
+      const listEl = document.getElementById('insp-list');
+      listEl.replaceChildren();
+
+      for (const spec of TILE_SPECS) {
+        const raw = rawIcons.get(spec.id);
+        const cfg = draftConfigs.get(spec.id);
+
+        const card = document.createElement('div');
+        card.className = 'insp-card';
+        card.dataset.id = spec.id;
+        card.dataset.checked = String(cfg.enabled);
+
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.checked = cfg.enabled;
+        chk.style.width = '18px';
+        chk.style.height = '18px';
+        chk.style.accentColor = 'var(--btn)';
+        chk.style.cursor = 'pointer';
+
+        const info = document.createElement('div');
+        info.className = 'insp-info';
+
+        const titleRow = document.createElement('div');
+        titleRow.className = 'insp-title';
+
+        const controlsRow = document.createElement('div');
+        controlsRow.className = 'insp-controls';
+
+        const makeChip = (label, key) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'insp-chip';
+          btn.textContent = label;
+          btn.setAttribute('aria-pressed', String(cfg[key]));
+          btn.addEventListener('click', () => {
+            cfg[key] = !cfg[key];
+            cfg.enabled = true;
+            chk.checked = true;
+            card.dataset.checked = 'true';
+            btn.setAttribute('aria-pressed', String(cfg[key]));
+            refreshCardPreview();
+            updateInspectorSummary();
+          });
+          return btn;
+        };
+
+        const chipBg = makeChip('배경 제거', 'bgRemove');
+        const chipTrim = makeChip('여백 크롭', 'trimAlpha');
+        const chipOpt = makeChip('등면적 보정', 'opticalSize');
+
+        const selAdapt = document.createElement('select');
+        selAdapt.className = 'insp-select';
+        selAdapt.innerHTML = `
+          <option value="none">다크 대비: 원본 유지</option>
+          <option value="auto">다크 대비: 자동 보정</option>
+          <option value="luma-lift">다크 대비: 명도 리프트</option>
+          <option value="invert-mark">다크 대비: 음각 반전</option>
+          <option value="keyline">다크 대비: 외곽 윤곽선</option>
+        `;
+        selAdapt.value = cfg.themeAdapt;
+        selAdapt.addEventListener('change', () => {
+          cfg.themeAdapt = selAdapt.value;
+          cfg.enabled = true;
+          chk.checked = true;
+          card.dataset.checked = 'true';
+          refreshCardPreview();
+          updateInspectorSummary();
+        });
+
+        controlsRow.append(chipBg, chipTrim, chipOpt, selAdapt);
+
+        const compare = document.createElement('div');
+        compare.className = 'insp-compare';
+        compare.dataset.previewBg = pgState.previewBg;
+
+        const refreshCardPreview = () => {
+          const res = runNonDestructivePipeline(raw.canvas, {
+            removeBg: cfg.bgRemove,
+            trimAlpha: cfg.trimAlpha,
+            opticalSize: cfg.opticalSize,
+            themeAdapt: cfg.themeAdapt,
+            currentTheme: pgState.previewBg,
+          });
+
+          const tags = [];
+          if (res.shouldRemoveOuterBg) tags.push(`<span class="insp-tag warn">외곽 단색 배경</span>`);
+          if (res.isMeaningfulChromaticBadge) tags.push(`<span class="insp-tag good">브랜드 배지 보호</span>`);
+          if (res.emptyMarginRatio >= 0.08) tags.push(`<span class="insp-tag good">빈 여백 ${Math.round(res.emptyMarginRatio * 100)}%</span>`);
+          if (res.asymmetryPx >= 1.8) tags.push(`<span class="insp-tag accent">비대칭 중심</span>`);
+          if (res.clashesWithDarkTheme) tags.push(`<span class="insp-tag accent">다크 저대비</span>`);
+
+          titleRow.innerHTML = `<span>${spec.name}</span> ${tags.join(' ')}`;
+          compare.innerHTML = `
+            <div class="insp-preview-box" title="원본"><img src="${raw.dataUrl}" alt=""></div>
+            <span class="insp-arrow">→</span>
+            <div class="insp-preview-box" title="개별 설정 적용 결과"><img src="${cfg.enabled ? res.dataUrl : raw.dataUrl}" alt=""></div>
+          `;
+        };
+
+        chk.addEventListener('change', () => {
+          cfg.enabled = chk.checked;
+          card.dataset.checked = String(chk.checked);
+          refreshCardPreview();
+          updateInspectorSummary();
+        });
+
+        refreshCardPreview();
+        info.append(titleRow, controlsRow);
+        card.append(chk, info, compare);
+        listEl.append(card);
+      }
+
+      updateInspectorSummary();
+    }
+
+    function updateInspectorSummary() {
+      const n = [...draftConfigs.values()].filter((c) => c.enabled).length;
+      document.getElementById('insp-summary-note').textContent =
+        `총 ${TILE_SPECS.length}개 중 ${n}개 선택됨 · 상단에서 체크 항목을 일괄 변경하거나 각 줄에서 개별 설정할 수 있습니다.`;
+      document.getElementById('insp-apply-btn').textContent = `${n}개 아이콘 설정 적용`;
+    }
+
+    // =========================================================================
+    // 6. 이벤트 연결
+    // =========================================================================
+    document.getElementById('journey-steps').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-step]');
+      if (btn) applyJourneyStep(Number(btn.dataset.step));
+    });
+
+    document.querySelectorAll('[data-open-page]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = document.getElementById('page-' + btn.dataset.openPage);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    document.getElementById('open-inspector-top').addEventListener('click', openInspectorModal);
+    document.getElementById('btn-run-inspector').addEventListener('click', openInspectorModal);
+
+    document.getElementById('btn-bake-open').addEventListener('click', () => {
+      document.getElementById('bake-dlg').showModal();
+    });
+
+    document.getElementById('btn-confirm-bake').addEventListener('click', () => {
+      bakedIcons.clear();
+      for (const spec of TILE_SPECS) {
+        const cfg = perIconConfigs.get(spec.id);
+        const isActive = cfg?.enabled === true;
+        const raw = rawIcons.get(spec.id);
+        const res = runNonDestructivePipeline(raw.canvas, {
+          removeBg: isActive && cfg.bgRemove,
+          trimAlpha: isActive && cfg.trimAlpha,
+          opticalSize: isActive && cfg.opticalSize,
+          themeAdapt: isActive ? cfg.themeAdapt : 'none',
+          currentTheme: pgState.theme,
+        });
+        const containerPct = pgState.unifiedScale ? pgState.iconScale : 50;
+        bakedIcons.set(spec.id, {
+          dataUrl: isActive ? res.dataUrl : raw.dataUrl,
+          effectivePct: Math.round(containerPct * res.finalSpanRatio),
+          bakedTheme: pgState.theme,
+        });
+      }
+      pgState.isBaked = true;
+      document.getElementById('bake-dlg').close();
+      renderStage();
+    });
+
+    document.getElementById('btn-reset-icons').addEventListener('click', () => {
+      initRawIcons();
+      applyJourneyStep(0);
+    });
+
+    document.getElementById('chk-unified-scale').addEventListener('change', (e) => {
+      pgState.unifiedScale = e.target.checked;
+      renderStage();
+    });
+
+    document.getElementById('seg-tile-size').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-v]');
+      if (!b) return;
+      pgState.tileSize = b.dataset.v;
+      document.querySelectorAll('#seg-tile-size button').forEach((el) => el.setAttribute('aria-pressed', String(el === b)));
+      renderStage();
+    });
+
+    const rngScale = document.getElementById('rng-icon-scale');
+    rngScale.addEventListener('input', () => {
+      pgState.unifiedScale = true;
+      document.getElementById('chk-unified-scale').checked = true;
+      pgState.iconScale = Number(rngScale.value);
+      document.getElementById('lbl-icon-scale').textContent = pgState.iconScale + '%';
+      document.getElementById('scale-readout').textContent = `아이콘 ${pgState.iconScale}%`;
+      document.getElementById('stage').dataset.unifiedScale = 'true';
+      document.documentElement.style.setProperty('--icon-scale', pgState.iconScale + '%');
+    });
+    rngScale.addEventListener('change', renderStage);
+
+    document.getElementById('chk-show-guides').addEventListener('change', (e) => {
+      pgState.showGuides = e.target.checked;
+      renderStage();
+    });
+
+    document.getElementById('chk-show-label').addEventListener('change', (e) => {
+      pgState.showLabel = e.target.checked;
+      renderStage();
+    });
+
+    document.getElementById('chk-hover-label').addEventListener('change', (e) => {
+      pgState.hoverLabel = e.target.checked;
+      renderStage();
+    });
+
+    document.getElementById('chk-suppress-title').addEventListener('change', (e) => {
+      pgState.suppressTitle = e.target.checked;
+      renderStage();
+    });
+
+    document.getElementById('sel-legibility').addEventListener('change', (e) => {
+      pgState.legibility = e.target.value;
+      renderStage();
+    });
+
+    document.getElementById('seg-theme').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-v]');
+      if (!b) return;
+      pgState.theme = b.dataset.v;
+      document.querySelectorAll('#seg-theme button').forEach((el) => el.setAttribute('aria-pressed', String(el === b)));
+      drawAuroraBackground();
+      renderStage();
+    });
+
+    // 검사 모달 상단 일괄 선택 및 일괄 설정 변경
+    document.getElementById('insp-select-recommended').addEventListener('click', () => {
+      for (const spec of TILE_SPECS) {
+        const base = buildDefaultIconConfig(spec.id);
+        draftConfigs.set(spec.id, { ...base, enabled: base.recommended });
+      }
+      renderInspectorCards();
+    });
+    document.getElementById('insp-select-all').addEventListener('click', () => {
+      for (const cfg of draftConfigs.values()) cfg.enabled = true;
+      renderInspectorCards();
+    });
+    document.getElementById('insp-select-invert').addEventListener('click', () => {
+      for (const cfg of draftConfigs.values()) cfg.enabled = !cfg.enabled;
+      renderInspectorCards();
+    });
+    document.getElementById('insp-select-none').addEventListener('click', () => {
+      for (const cfg of draftConfigs.values()) cfg.enabled = false;
+      renderInspectorCards();
+    });
+
+    document.getElementById('batch-bg').addEventListener('click', (e) => {
+      batchState.bgRemove = !batchState.bgRemove;
+      e.currentTarget.setAttribute('aria-pressed', String(batchState.bgRemove));
+      e.currentTarget.textContent = `배경 제거: ${batchState.bgRemove ? '켜짐' : '꺼짐'}`;
+      for (const cfg of draftConfigs.values()) {
+        if (cfg.enabled) cfg.bgRemove = batchState.bgRemove;
+      }
+      renderInspectorCards();
+    });
+    document.getElementById('batch-trim').addEventListener('click', (e) => {
+      batchState.trimAlpha = !batchState.trimAlpha;
+      e.currentTarget.setAttribute('aria-pressed', String(batchState.trimAlpha));
+      e.currentTarget.textContent = `여백 크롭: ${batchState.trimAlpha ? '켜짐' : '꺼짐'}`;
+      for (const cfg of draftConfigs.values()) {
+        if (cfg.enabled) cfg.trimAlpha = batchState.trimAlpha;
+      }
+      renderInspectorCards();
+    });
+    document.getElementById('batch-optical').addEventListener('click', (e) => {
+      batchState.opticalSize = !batchState.opticalSize;
+      e.currentTarget.setAttribute('aria-pressed', String(batchState.opticalSize));
+      e.currentTarget.textContent = `등면적 보정: ${batchState.opticalSize ? '켜짐' : '꺼짐'}`;
+      for (const cfg of draftConfigs.values()) {
+        if (cfg.enabled) cfg.opticalSize = batchState.opticalSize;
+      }
+      renderInspectorCards();
+    });
+    document.getElementById('batch-theme-adapt').addEventListener('change', (e) => {
+      batchState.themeAdapt = e.target.value;
+      for (const cfg of draftConfigs.values()) {
+        if (cfg.enabled) cfg.themeAdapt = batchState.themeAdapt;
+      }
+      renderInspectorCards();
+    });
+
+    document.getElementById('insp-preview-bg').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-v]');
+      if (!b) return;
+      pgState.previewBg = b.dataset.v;
+      document.querySelectorAll('#insp-preview-bg button').forEach((el) => el.setAttribute('aria-pressed', String(el === b)));
+      renderInspectorCards();
+    });
+
+    document.getElementById('insp-apply-btn').addEventListener('click', () => {
+      for (const [id, cfg] of draftConfigs.entries()) {
+        perIconConfigs.set(id, { ...cfg });
+      }
+      pgState.isBaked = false;
+      bakedIcons.clear();
+      pgState.unifiedScale = true;
+      syncControls();
+      renderStage();
+      document.getElementById('inspector-dlg').close();
+    });
+
+    document.addEventListener('click', (e) => {
+      const closer = e.target.closest('[data-close]');
+      if (closer) closer.closest('dialog').close();
+      if (e.target instanceof HTMLDialogElement) e.target.close();
+    });
+
+    async function loadUserImageFile(file) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = c.height = 64;
+        const ctx = c.getContext('2d');
+        const scale = Math.min(64 / img.width, 64 / img.height);
+        const w = img.width * scale, h = img.height * scale;
+        ctx.drawImage(img, (64 - w) / 2, (64 - h) / 2, w, h);
+        URL.revokeObjectURL(url);
+        TILE_SPECS[0].name = file.name.replace(/\.[^.]+$/, '').slice(0, 12) || '내 아이콘';
+        rawIcons.set(TILE_SPECS[0].id, { canvas: c, dataUrl: c.toDataURL('image/png') });
+        perIconConfigs.set(TILE_SPECS[0].id, buildDefaultIconConfig(TILE_SPECS[0].id));
+        pgState.selectedTileId = TILE_SPECS[0].id;
+        openInspectorModal();
+      };
+      img.src = url;
+    }
+
+    document.getElementById('btn-pick-custom').addEventListener('click', () => document.getElementById('inp-custom-file').click());
+    document.getElementById('inp-custom-file').addEventListener('change', (e) => {
+      const f = e.target.files?.[0];
+      if (f) loadUserImageFile(f);
+    });
+    const dropLab = document.getElementById('drop-lab');
+    dropLab.addEventListener('dragover', (e) => { e.preventDefault(); dropLab.classList.add('dragover'); });
+    dropLab.addEventListener('dragleave', () => dropLab.classList.remove('dragover'));
+    dropLab.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropLab.classList.remove('dragover');
+      const f = e.dataTransfer?.files?.[0];
+      if (f) loadUserImageFile(f);
+    });
+    window.addEventListener('paste', (e) => {
+      const item = [...(e.clipboardData?.items || [])].find((x) => x.type.startsWith('image/'));
+      if (item) loadUserImageFile(item.getAsFile());
+    });
+
+    window.addEventListener('resize', drawAuroraBackground);
+    drawAuroraBackground();
+    renderStage();
+  </script>
+</body>
+</html>

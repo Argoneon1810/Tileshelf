@@ -12,12 +12,16 @@
 import type { Composition } from './aurora.ts';
 import { mergeWhat } from './checkpoints.ts';
 import type { What, DocState } from './checkpoints.ts';
+import { sanitizeIconEffects } from './icon-effects.ts';
+import type { IconEffects } from './icon-effects.ts';
+import { DEFAULT_PANEL_TONE, clampPanelTone } from './panel-tone.ts';
 
 export interface Shortcut {
   id: string;
   name: string;
   url: string;
   icon?: string;
+  iconEffects?: IconEffects;
   addedAt: number;
 }
 
@@ -35,6 +39,11 @@ export const DEFAULT_SEARCH_ORDER: readonly SearchGroupKind[] = ['shortcuts', 'u
 export interface Settings {
   theme: Theme;
   tileSize: TileSize;
+  iconScale: number;
+  panelTone: number;
+  showLabel: boolean;
+  hoverLabel: boolean;
+  suppressTooltip: boolean;
   openInNewTab: boolean;
   searchOrder: SearchGroupKind[];
   bgType: BgType;
@@ -100,6 +109,11 @@ export interface StorageArea {
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'system', // system | dark | light
   tileSize: 'md', // sm | md | lg
+  iconScale: 50, // 35..75 (%) — 타일 상자 안에서 아이콘이 차지하는 기본 비율
+  panelTone: DEFAULT_PANEL_TONE, // 0..100 — 판 밝기. 0 글자 쪽, 100 아이콘 쪽 (panel-tone.ts)
+  showLabel: true, // 바로가기 이름 항상 표시 여부
+  hoverLabel: true, // 평소 이름 숨김일 때 마우스를 올리면 이름 표시 여부
+  suppressTooltip: true, // 평소 이름 숨김일 때 브라우저 기본 title 풍선 숨김 여부
   openInNewTab: false,
   searchOrder: [...DEFAULT_SEARCH_ORDER], // shortcuts | url | web — 검색 결과 묶음 우선순위
   bgType: 'gradient', // gradient | color | image  (image인데 이 PC에 사진이 없으면 gradient로 보인다)
@@ -133,6 +147,14 @@ function validSearchOrder(v: unknown): v is SearchGroupKind[] {
 function migrateSettings(s: Settings & { searchDefault?: unknown }): Settings {
   if (!['gradient', 'color', 'image'].includes(s.bgType)) s.bgType = 'gradient';
   if (!validSearchOrder(s.searchOrder)) s.searchOrder = [...DEFAULT_SEARCH_ORDER];
+  s.iconScale =
+    typeof s.iconScale === 'number' && Number.isFinite(s.iconScale)
+      ? Math.min(75, Math.max(35, Math.round(s.iconScale)))
+      : DEFAULT_SETTINGS.iconScale;
+  s.panelTone = clampPanelTone(s.panelTone);
+  if (typeof s.showLabel !== 'boolean') s.showLabel = DEFAULT_SETTINGS.showLabel;
+  if (typeof s.hoverLabel !== 'boolean') s.hoverLabel = DEFAULT_SETTINGS.hoverLabel;
+  if (typeof s.suppressTooltip !== 'boolean') s.suppressTooltip = DEFAULT_SETTINGS.suppressTooltip;
   // '자동'과 중앙 음영은 뺐다 (BACKLOG). 이 값은 다른 기기나 백업에서도 들어온다.
   // 효과를 직접 고른 적이 없으니 예전 기본 농도(24%)도 새 기본값으로 함께 옮긴다
   if (['auto', 'calm'].includes(s.legibility as string)) {
@@ -240,7 +262,15 @@ export class Store extends EventTarget {
   }
 
   // iconData: undefined는 그대로 두기, null은 자동 아이콘으로 되돌리기, 문자열은 새 아이콘
-  async updateShortcut(id: string, { name, url, iconData }: { name?: string; url?: string; iconData?: string | null }): Promise<void> {
+  async updateShortcut(
+    id: string,
+    {
+      name,
+      url,
+      iconData,
+      iconEffects,
+    }: { name?: string; url?: string; iconData?: string | null; iconEffects?: IconEffects | null },
+  ): Promise<void> {
     const s = this.shortcuts.find((x) => x.id === id);
     if (!s) return;
     if (name !== undefined) s.name = name;
@@ -249,8 +279,57 @@ export class Store extends EventTarget {
       delete s.icon;
       if (iconData) s.icon = this.#putIcon(iconData);
     }
+    if (iconEffects !== undefined) {
+      const clean = iconEffects ? sanitizeIconEffects(iconEffects) : undefined;
+      if (clean && clean.enabled) s.iconEffects = clean;
+      else delete s.iconEffects;
+    }
     this.#dropOrphanIcons();
     await this.#commit(['shortcuts', 'icons'], { what: { edit: 1 } });
+  }
+
+  // 검사기 모달에서 여러 아이콘의 비파괴 효과 스택을 한 번에 반영한다.
+  async applyIconEffectsBatch(
+    patches: Array<{ id: string; iconEffects: IconEffects | null; iconData?: string }>,
+  ): Promise<number> {
+    let changed = 0;
+    for (const p of patches) {
+      const s = this.shortcuts.find((x) => x.id === p.id);
+      if (!s) continue;
+      const prevJson = JSON.stringify(s.iconEffects ?? null);
+      let iconAdded = false;
+      if (p.iconData && !s.icon && isSafeImageDataUrl(p.iconData)) {
+        s.icon = this.#putIcon(p.iconData);
+        iconAdded = true;
+      }
+      const clean = p.iconEffects ? sanitizeIconEffects(p.iconEffects) : undefined;
+      if (clean && clean.enabled) s.iconEffects = clean;
+      else delete s.iconEffects;
+      if (iconAdded || JSON.stringify(s.iconEffects ?? null) !== prevJson) {
+        changed++;
+      }
+    }
+    if (!changed) return 0;
+    this.#dropOrphanIcons();
+    await this.#commit(['shortcuts', 'icons'], { what: { edit: changed } });
+    return changed;
+  }
+
+  // 저사양 기기용 파괴적 베이킹: 현재 합성된 비트맵을 아이콘에 구워 넣고 비파괴 스택을 비운다.
+  async bakeIconEffectsBatch(entries: Array<{ id: string; bakedDataUrl: string }>): Promise<number> {
+    let count = 0;
+    for (const e of entries) {
+      if (!isSafeImageDataUrl(e.bakedDataUrl)) continue;
+      const s = this.shortcuts.find((x) => x.id === e.id);
+      if (!s) continue;
+      s.icon = this.#putIcon(e.bakedDataUrl);
+      delete s.iconEffects;
+      count++;
+    }
+    if (!count) return 0;
+    this.#dropOrphanIcons();
+    await this.#commit(['shortcuts', 'icons'], { what: { edit: count } });
+    return count;
   }
 
   // 지운 바로가기와 그 아이콘을 돌려준다. 되돌리기에서 insertShortcut에 그대로 넘긴다.
@@ -313,7 +392,15 @@ export class Store extends EventTarget {
   async applyDoc(doc: SyncDoc, { origin, bgImage }: { origin?: Origin; bgImage?: string | null } = {}): Promise<void> {
     const keep = Object.fromEntries(DEVICE_ONLY.map((k) => [k, this.settings[k]])) as Partial<Settings>;
     const had = this.icons;
-    this.shortcuts = (doc.shortcuts ?? []).filter((s) => Boolean(s && typeof s.url === 'string' && isSafeShortcutUrl(s.url)));
+    this.shortcuts = (doc.shortcuts ?? [])
+      .filter((s) => Boolean(s && typeof s.url === 'string' && isSafeShortcutUrl(s.url)))
+      .map((s) => {
+        const copy: Shortcut = { id: s.id, name: s.name, url: s.url, addedAt: s.addedAt };
+        if (s.icon) copy.icon = s.icon;
+        const eff = sanitizeIconEffects(s.iconEffects);
+        if (eff && eff.enabled) copy.iconEffects = eff;
+        return copy;
+      });
     this.settings = migrateSettings({ ...DEFAULT_SETTINGS, ...doc.settings, ...keep });
     this.icons = Object.fromEntries(Object.entries(doc.icons ?? {}).filter(([k, v]) => Boolean(k) && isSafeImageDataUrl(v)));
     for (const s of this.shortcuts) if (s.icon && !this.icons[s.icon] && had[s.icon]) this.icons[s.icon] = had[s.icon];
@@ -331,9 +418,10 @@ export class Store extends EventTarget {
   // 백업 파일의 바로가기를 지금 목록 뒤에 덧붙인다. 설정은 건드리지 않는다.
   async appendShortcuts(shortcuts: Shortcut[], icons: Icons = {}): Promise<void> {
     for (const s of shortcuts) {
-      const copy: Shortcut = { ...s, id: newId() };
+      const copy: Shortcut = { id: newId(), name: s.name, url: s.url, addedAt: s.addedAt };
       if (s.icon && icons[s.icon]) copy.icon = this.#putIcon(icons[s.icon]);
-      else delete copy.icon;
+      const eff = sanitizeIconEffects(s.iconEffects);
+      if (eff && eff.enabled) copy.iconEffects = eff;
       this.shortcuts.push(copy);
     }
     await this.#commit(['shortcuts', 'icons'], { what: { add: shortcuts.length } });

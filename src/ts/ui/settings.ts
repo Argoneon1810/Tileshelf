@@ -10,6 +10,7 @@ import type { Store, Settings, BgFit, Legibility, SearchGroupKind, Theme, TileSi
 import type { Sync, SyncStatus, SyncStateName, HistoryEntry } from '../sync.ts';
 import type { Background } from '../background.ts';
 import { describe } from '../checkpoints.ts';
+import { applyPanelTone } from '../panel-tone.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -175,7 +176,23 @@ export class SettingsDrawer {
   #escHandledAt = -1e9;
   #draggingOrder = false;
 
-  constructor(store: Store, sync: Sync, { onExport, onImportClick, background }: { onExport: () => void; onImportClick: () => void; background: Background }) {
+  constructor(
+    store: Store,
+    sync: Sync,
+    {
+      onExport,
+      onImportClick,
+      onOpenInspector,
+      onOpenBake,
+      background,
+    }: {
+      onExport: () => void;
+      onImportClick: () => void;
+      onOpenInspector: () => void;
+      onOpenBake: () => void;
+      background: Background;
+    },
+  ) {
     this.store = store;
     this.sync = sync;
     this.background = background;
@@ -237,6 +254,9 @@ export class SettingsDrawer {
     });
     $('set-bgfit').addEventListener('change', (e) => store.setSettings({ bgFit: (e.target as HTMLSelectElement).value as BgFit }));
     $('set-legibility').addEventListener('change', (e) => store.setSettings({ legibility: (e.target as HTMLSelectElement).value as Legibility }));
+    $('set-show-label').addEventListener('change', (e) => store.setSettings({ showLabel: (e.target as HTMLInputElement).checked }));
+    $('set-hover-label').addEventListener('change', (e) => store.setSettings({ hoverLabel: (e.target as HTMLInputElement).checked }));
+    $('set-suppress-title').addEventListener('change', (e) => store.setSettings({ suppressTooltip: (e.target as HTMLInputElement).checked }));
 
     // 막대를 끄는 동안에는 화면만 바꾸고, 손을 뗄 때 저장한다
     const dim = $<HTMLInputElement>('set-dim');
@@ -245,6 +265,24 @@ export class SettingsDrawer {
       $('dim-value').textContent = dim.value + '%';
     });
     dim.addEventListener('change', () => store.setSettings({ dim: Number(dim.value) / 100 }));
+
+    const iconScale = $<HTMLInputElement>('set-icon-scale');
+    iconScale.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--icon-scale', iconScale.value + '%');
+      $('icon-scale-value').textContent = iconScale.value + '%';
+    });
+    iconScale.addEventListener('change', () => store.setSettings({ iconScale: Number(iconScale.value) }));
+
+    // 판 밝기: 움직이는 동안은 화면만 바꾸고(미리보기), 놓으면 저장한다
+    const panelTone = $<HTMLInputElement>('set-panel-tone');
+    panelTone.addEventListener('input', () => {
+      const root = document.documentElement;
+      applyPanelTone(root, root.dataset.theme === 'light' ? 'light' : 'dark', Number(panelTone.value));
+    });
+    panelTone.addEventListener('change', () => store.setSettings({ panelTone: Number(panelTone.value) }));
+
+    $('open-icon-inspector').addEventListener('click', onOpenInspector);
+    $('open-icon-bake').addEventListener('click', onOpenBake);
 
     $('bg-pick').addEventListener('click', () => this.pickPhoto());
     $('photo-notice-ok').addEventListener('click', async () => {
@@ -398,6 +436,16 @@ export class SettingsDrawer {
     }
     $<HTMLInputElement>('set-sync').checked = settings.syncEnabled;
     $<HTMLInputElement>('set-newtab').checked = settings.openInNewTab;
+    $<HTMLInputElement>('set-show-label').checked = settings.showLabel;
+    $<HTMLInputElement>('set-hover-label').checked = settings.hoverLabel;
+    $<HTMLInputElement>('set-suppress-title').checked = settings.suppressTooltip;
+    $('hover-label-row').hidden = settings.showLabel;
+    $('suppress-title-row').hidden = settings.showLabel;
+    $<HTMLInputElement>('set-icon-scale').value = String(settings.iconScale);
+    $('icon-scale-value').textContent = settings.iconScale + '%';
+    $<HTMLInputElement>('set-panel-tone').value = String(settings.panelTone);
+    const activeEffectsCount = this.store.shortcuts.filter((s) => s.iconEffects?.enabled).length;
+    $('open-icon-bake').hidden = activeEffectsCount === 0;
     this.renderSearchOrder();
     this.updateAccent(settings);
     this.updateBgColor(settings);

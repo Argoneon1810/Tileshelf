@@ -9,7 +9,7 @@
 Sync shortcuts, custom icons, and appearance across devices via Chrome Sync,<br/>
 roll back with 100-step per-device version history, search everything from one bar, and back up photos in a single `.json` file.
 
-[한국어](README.md) · [**English**](README.en.md) · [**Download Latest Release (`v1.0.0` ZIP)**](https://github.com/Argoneon1810/Tileshelf/releases/latest) · [Chrome Web Store](https://chromewebstore.google.com/detail/tileshelf/gpcpfkhbghjbcoechkpdfcjokolhfnep) · [Changelog](CHANGELOG.md) · [Privacy Policy](PRIVACY.md) · [Report an Issue](https://github.com/Argoneon1810/Tileshelf/issues)
+[한국어](README.md) · [**English**](README.en.md) · [**Download Latest Release (ZIP)**](https://github.com/Argoneon1810/Tileshelf/releases/latest) · [Chrome Web Store](https://chromewebstore.google.com/detail/tileshelf/gpcpfkhbghjbcoechkpdfcjokolhfnep) · [Changelog](CHANGELOG.md) · [Privacy Policy](PRIVACY.md) · [Report an Issue](https://github.com/Argoneon1810/Tileshelf/issues)
 
 </div>
 
@@ -28,19 +28,24 @@ roll back with 100-step per-device version history, search everything from one b
 
 ## Installation
 
-### 1. Direct Install from GitHub Releases (No Node.js Needed · Recommended While Store Review Is Pending)
+Choose the installation method that fits your workflow:
 
-You can install the official packaged release right away without building from source:
+- **Chrome Web Store (Recommended)**: Best for one-click installation and automatic updates. New versions arrive after store review completes, which may be later than GitHub Releases.
+- **GitHub Release ZIP**: Best if you want the latest version immediately upon release without needing build tools or Node.js. Updates must be applied manually.
 
-1. Go to [GitHub Releases](https://github.com/Argoneon1810/Tileshelf/releases/latest), download **`tileshelf-1.0.0.zip`** ([Direct Download](https://github.com/Argoneon1810/Tileshelf/releases/download/v1.0.0/tileshelf-1.0.0.zip)), and extract it into a permanent folder (for example, `Documents/Tileshelf`).
-2. Open `chrome://extensions` in Chrome and enable **Developer mode** in the top-right corner.
-3. Click **Load unpacked** in the top-left corner and select the extracted folder (the folder directly containing `manifest.json`).
-4. Open a new tab and click **Keep it** if Chrome asks whether to keep your new tab page change.
+> **Switching between installation methods**: Chrome treats the Web Store version and the ZIP version as separate extensions. Before switching, export your data as a `.json` file from **Settings → Backup → Export backup file** in your current version, then restore it via **Import backup file** in the newly installed one.
 
-### 2. Chrome Web Store
+### 1. Install from Chrome Web Store
+1. Open the [Tileshelf page on the Chrome Web Store](https://chromewebstore.google.com/detail/tileshelf/gpcpfkhbghjbcoechkpdfcjokolhfnep).
+2. Click to install. Updates will be applied automatically after store review.
 
-- [Tileshelf on the Chrome Web Store](https://chromewebstore.google.com/detail/tileshelf/gpcpfkhbghjbcoechkpdfcjokolhfnep) *(Initial store review is currently in progress; one-click install and automatic updates will unlock as soon as review completes.)*
-- Switching between an unpacked build and the Chrome Web Store edition assigns a new Chrome extension ID. Export a `.json` backup from **Settings → Backup** before switching and import it into the new installation.
+### 2. Install from GitHub Release ZIP
+1. Download `tileshelf-<version>.zip` from the [Latest Release page](https://github.com/Argoneon1810/Tileshelf/releases/latest) and extract it to a permanent folder you won't delete (e.g., `Documents/Tileshelf`).
+2. Open `chrome://extensions` in your Chrome address bar and turn on **Developer mode** at the top right.
+3. Click **Load unpacked** at the top left and select the extracted folder (the folder directly containing `manifest.json`).
+4. When you open a new tab and Chrome asks whether to keep the new tab page changes, click **Keep it**.
+
+- **How to update**: The ZIP version does not update automatically. Download the new `tileshelf-<version>.zip`, **extract and overwrite it into the exact same folder you used for the initial installation**, and click the reload (circular arrow) button on the Tileshelf card in `chrome://extensions`. Extracting into a different folder causes Chrome to treat it as a separate extension with empty shortcuts and settings (your original data remains tied to the previous folder's extension).
 
 <details>
 <summary><strong>3. Build from Source (For Developers)</strong></summary>
@@ -103,6 +108,19 @@ Then open `chrome://extensions`, enable **Developer mode**, click **Load unpacke
 2. **Fresh-install protection**: A newly installed device never overwrites an existing account with `0` shortcuts. If shortcuts are added offline before sync arrives, they form a separate branch rather than silently overwriting other devices, and can be selected anytime in **Settings → History**.
 3. **Automatic reseed & pre-restore safety**: If Chrome Sync data is cleared (for instance after uninstalling on one machine), another synced device automatically reseeds the account from its local pack. Rolling back to an older checkpoint also snapshots any pending unsaved edits first so you can undo the rollback.
 
+### 5. Shortcut Editing & Tile Display
+- **Quick Shortcut Editing**: Hover over a tile and click the pencil button at the bottom-right of the icon, or right-click the tile to open the edit dialog (name, URL, and icon).
+- **Edit Mode**: Toggle edit mode using the pencil button (**Edit shortcuts**) next to the settings button at the top right. When active, all shortcuts show a pencil button and a dashed border, and clicking any tile opens the edit dialog instead of visiting the site. Click the button again or press `Esc` to exit.
+- **Keyboard Navigation**: Pressing `Tab` stops once on each shortcut. To edit with a keyboard, turn on **Edit shortcuts** and press `Enter`, or press the context menu key (`Shift+F10`) on a focused tile.
+- **New Shortcut Indicator**: Shortcuts added within the last 24 hours display a small dot at the top right; hover over it to see what it means.
+- **Hiding Names & Hover Labels**: Turning off **Settings → Label legibility → Always show shortcut names** hides the labels and expands the icon panels accordingly. Turning on **Show name on hover** reveals the name only on the tile you are hovering over.
+
+### 6. Icon Cleanup & Surface Tone Balance
+- **Icon Display Area Scale**: Adjust how much space the icon takes up inside its panel from 35% to 75% (50% by default) under **Settings → Display → Icon display area scale**.
+- **Surface Tone Balance**: Use the single slider at **Settings → Display → Surface tone balance** to adjust the brightness of all panels across the app at once (icon backing panels, search bar, buttons, settings drawer, dialogs, and toasts). Moving toward the left end (**Clear text**) makes text on panels easiest to read, while moving toward the right end (**Vivid icons**) makes transparent logos (black logos in Dark theme, white logos in Light theme) stand out best at the cost of making muted description text harder to read (centered by default).
+- **Icon Background & Margin Cleanup**: Open **Settings → Display → Icon background & margin cleanup → Inspect & configure…** to remove solid outer backgrounds, crop transparent margins, normalize sizes, and adjust contrast for Dark theme—either in batch or per icon. This only applies to custom image icons chosen in the edit dialog (not automatically fetched site icons) and leaves the original images untouched, calculating and applying the cleanup only when drawing a new tab.
+- **Flatten into Originals for Speed**: To open new tabs faster on slower computers, **Flatten into originals for speed…** overwrites the original images with the currently displayed cleanup results. This action is permanent—original images, removed backgrounds, and cropped margins cannot be recovered, and contrast adjustments lock to the current theme's colors—and can only be canceled via the **Undo** button on the toast notification shown immediately after execution.
+
 ---
 
 ## Good to Know & Safety Notices
@@ -135,7 +153,7 @@ Written in zero-runtime-dependency TypeScript (`src/ts/`). [scripts/build.mjs](s
 
 ```bash
 npm run typecheck                     # TypeScript static analysis (tsc --noEmit)
-npm test                              # 43 unit tests covering sync, delta packs, backup, search, i18n & security (Node.js 24+)
+npm test                              # Unit tests covering sync, delta packs, backup, search, i18n & security (Node.js 24+)
 npm run build                         # Compile src → dist and verify zero external references
 npm run package                       # Build Chrome Web Store / GitHub Release archive at release/tileshelf-<version>.zip
 node scripts/generate-release-notes.mjs  # Generate bilingual release notes + SHA-256 checksum

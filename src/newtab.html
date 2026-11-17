@@ -11,6 +11,9 @@
   <div id="bg" data-fit="cover" aria-hidden="true"><canvas class="main"></canvas><canvas class="fade" hidden></canvas><div class="calm-shade"></div><div class="grain"></div></div>
 
   <div class="top-actions">
+    <button id="edit-mode-btn" class="icon-btn glass" type="button" aria-pressed="false" aria-label="바로가기 편집 모드" title="바로가기 편집 모드" data-i18n-aria-label="ariaEditMode" data-i18n-title="ariaEditMode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
+    </button>
     <button id="settings-btn" class="icon-btn glass" type="button" aria-label="설정" data-i18n-aria-label="ariaSettings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       <span class="status-dot" data-state="off" title="동기화에 문제가 발생했습니다" data-i18n-title="syncProblemDot"></span>
@@ -299,6 +302,18 @@
           <div data-drill-page="legibility" hidden>
             <section id="sec-legibility">
               <h3 data-i18n="pageLegibility">이름 가독성</h3>
+              <div class="setting">
+                <span data-i18n="labelShowShortcutNames">바로가기 이름 항상 표시</span>
+                <label class="switch"><input id="set-show-label" type="checkbox" checked><i></i></label>
+              </div>
+              <div class="setting" id="hover-label-row" hidden>
+                <span data-i18n="labelShowNameOnHover">마우스를 올렸을 때 이름 표시</span>
+                <label class="switch"><input id="set-hover-label" type="checkbox" checked><i></i></label>
+              </div>
+              <div class="setting" id="suppress-title-row" hidden>
+                <span data-i18n="labelSuppressTooltip">브라우저 기본 툴팁(주소 풍선) 숨김</span>
+                <label class="switch"><input id="set-suppress-title" type="checkbox" checked><i></i></label>
+              </div>
               <label class="field"><span data-i18n="labelLegibilityEffect">가독성 효과</span>
                 <select id="set-legibility">
                   <option value="shadow" data-i18n="legShadow">그림자 효과</option>
@@ -328,6 +343,26 @@
                 <div class="seg" data-setting="tileSize">
                   <button type="button" data-v="sm" data-i18n="sizeSm">작게</button><button type="button" data-v="md" data-i18n="sizeMd">보통</button><button type="button" data-v="lg" data-i18n="sizeLg">크게</button>
                 </div>
+              </div>
+              <div class="setting">
+                <span><span data-i18n="labelIconScale">아이콘 표시 영역 비율</span> <b id="icon-scale-value">50%</b></span>
+                <input id="set-icon-scale" type="range" min="35" max="75" step="1" value="50">
+              </div>
+              <!-- 판 밝기: 0 글자 쪽 ↔ 100 아이콘 쪽, 가운데가 기본 (panel-tone.ts). 문구는 개발자가 받아 와 채운다 -->
+              <div class="setting">
+                <span data-i18n="labelPanelTone">배경판 밝기 균형</span>
+                <input id="set-panel-tone" type="range" min="0" max="100" step="1" value="50">
+              </div>
+              <div class="range-ends">
+                <span data-i18n="panelToneText">글자 또렷이</span>
+                <span data-i18n="panelToneIcon">아이콘 선명히</span>
+              </div>
+              <div class="setting">
+                <span data-i18n="labelIconRefine">아이콘 배경 · 여백 정리</span>
+                <button id="open-icon-inspector" class="btn small" type="button" data-i18n="btnOpenIconInspector">검사 및 설정…</button>
+              </div>
+              <div class="row" style="margin-bottom:8px">
+                <button id="open-icon-bake" class="btn small" type="button" data-i18n="btnOpenIconBake" hidden>원본에 덮어써서 속도 높이기…</button>
               </div>
               <div class="setting">
                 <span data-i18n="labelOpenNewTab">새 탭에서 바로가기 열기</span>
@@ -390,6 +425,75 @@
             </section>
           </div>
         </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 아이콘 배경·여백 정리 (일괄 설정 + 아이콘별 개별 설정) -->
+  <dialog id="icon-inspector">
+    <div class="sheet">
+      <div class="insp-header">
+        <div>
+          <h2 data-i18n="inspDialogTitle">아이콘 배경 · 여백 정리</h2>
+          <p data-i18n="inspDialogDesc">직접 올린 아이콘의 배경·여백·대비를 화면에 그릴 때만 다듬어 보여 줍니다. 원래 이미지는 바뀌지 않으며, 위에서 한꺼번에 적용하거나 아래에서 하나씩 조절할 수 있습니다.</p>
+        </div>
+        <button type="button" class="btn ghost" data-close data-i18n="btnClose">닫기</button>
+      </div>
+
+      <div class="insp-toolbar">
+        <div class="insp-toolbar-row">
+          <div class="row">
+            <button type="button" class="btn small" id="insp-select-recommended" data-i18n="inspBtnRecommended">권장 후보 선택</button>
+            <button type="button" class="btn ghost small" id="insp-select-all" data-i18n="inspBtnSelectAll">모두 선택</button>
+            <button type="button" class="btn ghost small" id="insp-select-invert" data-i18n="inspBtnInvert">선택 반전</button>
+            <button type="button" class="btn ghost small" id="insp-select-none" data-i18n="inspBtnSelectNone">모두 해제</button>
+          </div>
+          <div class="row">
+            <span data-i18n="inspPreviewBgLabel">미리보기 타일</span>
+            <div class="seg" id="insp-preview-bg">
+              <button type="button" data-v="dark" aria-pressed="true" data-i18n="themeDark">어둡게</button>
+              <button type="button" data-v="light" aria-pressed="false" data-i18n="themeLight">밝게</button>
+            </div>
+          </div>
+        </div>
+        <div class="insp-toolbar-row insp-batch-row">
+          <span data-i18n="inspBatchLabel">체크된 항목 일괄 변경</span>
+          <div class="row">
+            <button type="button" class="insp-chip" id="batch-bg" aria-pressed="true" data-i18n="inspChipBg">배경 제거</button>
+            <button type="button" class="insp-chip" id="batch-trim" aria-pressed="true" data-i18n="inspChipTrim">여백 크롭</button>
+            <button type="button" class="insp-chip" id="batch-optical" aria-pressed="true" data-i18n="inspChipOptical">등면적 보정</button>
+            <select class="insp-select" id="batch-theme-adapt">
+              <option value="auto" data-i18n="inspAdaptAuto">다크 대비: 자동 보정</option>
+              <option value="luma-lift" data-i18n="inspAdaptLuma">다크 대비: 명도 리프트</option>
+              <option value="invert-mark" data-i18n="inspAdaptInvert">다크 대비: 음각 반전</option>
+              <option value="keyline" data-i18n="inspAdaptKeyline">다크 대비: 외곽 윤곽선</option>
+              <option value="none" data-i18n="inspAdaptNone">다크 대비: 원본 유지</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="insp-list" id="insp-list"></div>
+
+      <div class="actions">
+        <span class="note" id="insp-summary-note"></span>
+        <div class="row">
+          <button type="button" class="btn ghost" data-close data-i18n="btnCancel">취소</button>
+          <button type="button" class="btn primary" id="insp-apply-btn" data-i18n="btnSave">저장</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 저사양 기기용 파괴적 베이킹 경고 모달 -->
+  <dialog id="icon-bake">
+    <div class="sheet">
+      <h2 data-i18n="bakeDialogTitle">정리된 모습을 원본 이미지에 덮어쓸까요?</h2>
+      <p data-i18n="bakeDialogBody1">지금은 새 탭을 열 때마다 정리 설정을 계산해 화면에 입히고 있습니다. 현재 보이는 모습을 이미지 자체로 저장해 원본을 바꾸면, 매번 다시 계산하지 않아 느린 컴퓨터에서 새 탭이 한결 빨리 열립니다.</p>
+      <p class="note warn" data-i18n="bakeDialogBody2">단, 이 컴퓨터에서 원래 이미지가 지워져 지운 배경과 잘린 여백을 되살릴 수 없고, 대비 보정도 지금 테마(밝은/어두운) 색상으로 굳어져 나중에 테마를 바꿔도 변하지 않습니다. 실행 직후 뜨는 알림의 [되돌리기]를 놓치면 원래 이미지를 되찾기 어렵습니다.</p>
+      <div class="actions">
+        <button type="button" class="btn ghost" data-close data-i18n="btnCancel">취소</button>
+        <button type="button" class="btn danger" id="btn-confirm-bake" data-i18n="bakeBtnConfirm">원본에 덮어쓰기</button>
       </div>
     </div>
   </dialog>

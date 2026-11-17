@@ -1,7 +1,7 @@
 // 확장으로 설치하지 않고 일반 웹 페이지로 newtab.html을 띄워 보기 위한 가짜 chrome API.
 // 주소 뒤 ?bg=lake|ribbon|none&theme=dark|light&accent=rrggbb&empty=1&open=settings|edit|add 로 처음 상태를 고른다.
 // bg=none이면 그라데이션 배경이다. comp=구도, seed=변형, motion=1이면 흐르기, t=초면 그 시각에 멈춘 모습,
-// leg=auto|shadow|dim|calm|card는 이름 글씨 처리.
+// leg=auto|shadow|dim|calm|card는 이름 글씨 처리. customicon=1이면 첫 바로가기에 직접 고른 아이콘을 단다.
 (() => {
   const params = new URLSearchParams(location.search);
   const listeners = new Set();
@@ -39,11 +39,25 @@
   const now = Date.now();
   const shortcuts = params.get('empty')
     ? []
-    : sites.map(([name, url], i) => ({ id: 's' + i, name, url, addedAt: i === 19 ? now : 1 }));
+    : sites.map(([name, url], i) => ({
+      id: 's' + i, name, url, addedAt: i === 19 ? now : 1,
+      // customicon=1이면 첫 바로가기에 직접 고른 아이콘(c1)을 단다(아이콘 정리 시험용)
+      ...(params.get('customicon') && i === 0 ? { icon: 'c1' } : {}),
+    }));
+  // 흰 바탕 64×64에 가운데 남색 사각형. 배경 제거·여백 정리가 할 일이 있는 그림.
+  const customIcon = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 64);
+    g.fillStyle = '#1f3b70'; g.fillRect(20, 20, 24, 24);
+    return c.toDataURL('image/png');
+  })();
 
   const bg = params.get('bg') ?? 'lake';
   const local = {
     shortcuts,
+    ...(params.get('customicon') ? { icons: { c1: customIcon } } : {}),
     settings: {
       theme: params.get('theme') ?? 'dark',
       bgType: bg === 'none' ? 'gradient' : 'image',

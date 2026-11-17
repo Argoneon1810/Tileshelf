@@ -100,7 +100,13 @@ export class SearchResults {
       const s = chip.shortcut;
       btn.dataset.id = s.id;
       btn.title = `${s.name}\n${s.url}`;
-      fillIcon(ic, { name: s.name, url: s.url, customData: s.icon && this.store.icons[s.icon] });
+      fillIcon(ic, {
+        id: s.id,
+        name: s.name,
+        url: s.url,
+        customData: s.icon && this.store.icons[s.icon],
+        effects: s.iconEffects,
+      });
     } else if (chip.kind === 'url') {
       ic.innerHTML = GLOBE_SVG;
     } else {

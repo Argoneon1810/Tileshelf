@@ -53,10 +53,26 @@ jobs:
       - name: Build packaged extension archive
         run: npm run package
 
+      # 이미 공개된 릴리스 태그 목록. 릴리스 노트가 직전 공개 판 다음부터의 CHANGELOG를 모두 싣는 데 쓴다
+      # (공개하지 않은 중간 판의 변화가 빠지지 않게). 목록을 못 얻으면 이번 판의 절만 싣는다.
+      - name: List published releases
+        id: published
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          {
+            echo 'tags<<TAGS_EOF'
+            gh release list --limit 100 --exclude-drafts --json tagName --jq '.[].tagName' || true
+            echo 'TAGS_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Verify tag and generate release notes
         id: notes
         env:
           RELEASE_TAG: ${{ steps.ref.outputs.tag }}
+          PUBLISHED_TAGS: ${{ steps.published.outputs.tags }}
         run: node scripts/generate-release-notes.mjs
 
       - name: Create or update GitHub Release

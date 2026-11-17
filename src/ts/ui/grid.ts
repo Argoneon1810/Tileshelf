@@ -3,11 +3,13 @@
 import { NEW_BADGE_MS } from '../store.ts';
 import type { Store } from '../store.ts';
 import { autoIconSources } from '../images.ts';
+import { renderIconWithEffects } from '../icon-effects.ts';
+import type { IconEffects } from '../icon-effects.ts';
 import { t } from '../i18n.ts';
 import { isLocalFileUrl, openLocalFileUrl } from './open-url.ts';
 
 const PLUS_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
-const MORE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+const PEN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
 const DRAG_START_PX = 6;
 
 // 이벤트가 일어난 요소에서 위로 올라가며 selector에 맞는 첫 요소
@@ -30,19 +32,43 @@ function letterOf(name: string): HTMLSpanElement {
   return span;
 }
 
-// 아이콘 칸 하나를 채운다. 직접 고른 아이콘 → 자동 아이콘 → 첫 글자 순서로 시도한다.
-export function fillIcon(box: HTMLElement, { name, url, customData }: { name: string; url: string; customData?: string | null }): void {
+// 아이콘 칸 하나를 채운다. 직접 고른 아이콘 → 자동 아이콘 → 첫 글자 순서로 시도하며,
+// 비파괴 효과 스택(effects?.enabled)이 켜져 있으면 현재 테마에 맞춰 정제된 이미지를 입힌다.
+export function fillIcon(
+  box: HTMLElement,
+  {
+    id,
+    name,
+    url,
+    customData,
+    effects,
+  }: { id?: string; name: string; url: string; customData?: string | null; effects?: IconEffects },
+): void {
   box.replaceChildren();
   const img = new Image();
   img.alt = '';
   img.draggable = false;
+  const sources = customData ? [customData] : autoIconSources(url);
+
+  // 정리 효과는 직접 고른 아이콘에만 입힌다. 자동 아이콘은 바깥 서버 그림이라 픽셀을 읽을 수 없고,
+  // 억지로 읽으면 다른 후보(Chrome 내장 파비콘)의 그림으로 바뀌어 화면과 달라진다(1.2.1).
+  if (effects?.enabled && customData) {
+    const theme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+    const cacheKey = id ?? (customData ? customData.slice(0, 48) : url);
+    void renderIconWithEffects(cacheKey, sources, effects, theme).then((refined) => {
+      if (refined && img.isConnected) {
+        img.src = refined;
+        img.className = 'custom';
+      }
+    });
+  }
+
   if (customData) {
     img.src = customData;
     img.className = 'custom';
     box.append(img);
     return;
   }
-  const sources = autoIconSources(url);
   if (!sources.length) {
     box.replaceChildren(letterOf(name || url));
     return;
@@ -62,6 +88,8 @@ export class Grid {
   store: Store;
   onEdit: (id: string) => void;
   onAdd: () => void;
+  // 편집 모드: 타일을 누르면 사이트 대신 편집 창을 연다(main.ts가 켜고 끈다).
+  editing = false;
   #suppressClick = false;
 
   constructor(el: HTMLElement, store: Store, { onEdit, onAdd }: { onEdit: (id: string) => void; onAdd: () => void }) {
@@ -71,6 +99,11 @@ export class Grid {
     this.onAdd = onAdd;
 
     el.addEventListener('click', (e) => this.#onClick(e), true);
+    // 편집 칩은 눌러도 초점을 가져가지 않는다. 그래야 편집 창이 닫힐 때 초점이 보이지 않는 칩으로
+    // 돌아가지 않고, 그 전에 초점이 있던 곳(대개 없음)으로 돌아간다.
+    el.addEventListener('mousedown', (e) => {
+      if (hit(e, '.more')) e.preventDefault();
+    });
     el.addEventListener('contextmenu', (e) => {
       const tile = hit(e, '.tile[data-id]');
       if (!tile) return;
@@ -93,31 +126,48 @@ export class Grid {
       a.className = 'link';
       a.href = s.url;
       a.draggable = false;
-      a.title = `${s.name}\n${s.url}`;
+      // 새로 추가된 바로가기는 배지의 뜻을 화면 읽기 프로그램과 타일 툴팁에도 함께 알린다.
+      const isNew = !!s.addedAt && now - s.addedAt < NEW_BADGE_MS;
+      a.setAttribute('aria-label', isNew ? `${s.name}, ${t('badgeNew')}` : s.name);
+      if (settings.showLabel || !settings.suppressTooltip) {
+        a.title = isNew ? `${s.name}\n${s.url}\n${t('badgeNew')}` : `${s.name}\n${s.url}`;
+      }
       if (settings.openInNewTab) a.target = '_blank';
 
       const ic = document.createElement('span');
       ic.className = 'ic glass';
-      fillIcon(ic, { name: s.name, url: s.url, customData: s.icon && icons[s.icon] });
+      fillIcon(ic, {
+        id: s.id,
+        name: s.name,
+        url: s.url,
+        customData: s.icon && icons[s.icon],
+        effects: s.iconEffects,
+      });
 
       const lb = document.createElement('span');
       lb.className = 'lb';
       lb.textContent = s.name;
       a.append(ic, lb);
-
-      const more = document.createElement('button');
-      more.type = 'button';
-      more.className = 'more glass';
-      more.setAttribute('aria-label', t('ariaEditTile', s.name));
-      more.innerHTML = MORE_SVG;
-
-      tile.append(a, more);
-      if (s.addedAt && now - s.addedAt < NEW_BADGE_MS) {
+      if (isNew) {
+        // 링크 안에 두어 누르면 사이트가 열리고, 마우스를 올리면 배지 자신의 툴팁이 뜬다.
+        // 뜻은 링크의 aria-label에 이미 들어 있으므로 화면 읽기 프로그램에서는 숨긴다.
         const badge = document.createElement('span');
         badge.className = 'badge';
         badge.title = t('badgeNew');
-        tile.append(badge);
+        badge.setAttribute('aria-hidden', 'true');
+        a.append(badge);
       }
+
+      // 편집 칩(클래스 이름은 예전 ⋮ 단추의 'more'를 그대로 쓴다). 마우스용 단추라 Tab은 멈추지 않는다.
+      // 키보드로는 편집 모드(오른쪽 위 편집 단추)나 메뉴 키(Shift+F10)로 편집한다.
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'more glass';
+      more.tabIndex = -1;
+      more.setAttribute('aria-label', t('ariaEditTile', s.name));
+      more.innerHTML = PEN_SVG;
+
+      tile.append(a, more);
       frag.append(tile);
     }
 
@@ -158,6 +208,11 @@ export class Grid {
       return;
     }
     const link = hit(e, '.tile[data-id] .link') as HTMLAnchorElement | null;
+    if (link && this.editing) {
+      e.preventDefault();
+      this.onEdit(link.closest<HTMLElement>('.tile')!.dataset.id!);
+      return;
+    }
     if (link && isLocalFileUrl(link.href)) {
       e.preventDefault();
       const inNewTab = this.store.settings.openInNewTab || e.ctrlKey || e.metaKey || e.shiftKey;

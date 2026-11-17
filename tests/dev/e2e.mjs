@@ -10,7 +10,9 @@ import assert from 'node:assert/strict';
 
 const CHROME = process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PORT = 9333;
-const URL_ = 'http://127.0.0.1:8765/tests/dev/preview.html?bg=lake';
+// 8765를 다른 프로그램이 쓰고 있으면 PREVIEW_PORT=<포트>로 미리보기 서버 포트를 바꾼다.
+const PREVIEW = process.env.PREVIEW_PORT ?? '8765';
+const URL_ = `http://127.0.0.1:${PREVIEW}/tests/dev/preview.html?bg=lake`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const chrome = spawn(CHROME, [
@@ -773,7 +775,7 @@ try {
   });
 
   await step('CPU와 GPU가 같은 그림을 그린다 (채널 차이 2/255 이하)', async () => {
-    await send('Page.navigate', { url: 'http://127.0.0.1:8765/tests/dev/parity.html' });
+    await send('Page.navigate', { url: `http://127.0.0.1:${PREVIEW}/tests/dev/parity.html` });
     let r;
     for (let i = 0; i < 100 && !(r = await js('window.__parity')); i++) await sleep(100);
     assert.equal(r.webgl, true);

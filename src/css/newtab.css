@@ -8,18 +8,26 @@
   --ramp-950: #0f1720;
 
   --tile-icon: 56px;
+  --tile-icon-expanded: 64px;
+  --tile-cell-h: 98px;
   --tile-w: 96px;
+  --icon-scale: 50%;
   --dim: 0.24;
   --radius-lg: 18px;
   --radius-md: 12px;
   --radius-sm: 10px;
   --ease: cubic-bezier(.2, .8, .2, 1);
 }
-:root[data-size='sm'] { --tile-icon: 46px; --tile-w: 84px; }
-:root[data-size='lg'] { --tile-icon: 68px; --tile-w: 112px; }
+:root[data-size='sm'] { --tile-icon: 46px; --tile-icon-expanded: 54px; --tile-cell-h: 86px; --tile-w: 84px; }
+:root[data-size='lg'] { --tile-icon: 68px; --tile-icon-expanded: 74px; --tile-cell-h: 112px; --tile-w: 112px; }
 
 :root[data-theme='dark'] {
-  --glass: 25, 29, 35;
+  /* 유리 판과 아이콘 판은 같은 색. 판 밝기 슬라이더(panel-tone.ts)가 main.ts에서 이 값을 덮어쓴다.
+     여기 값은 스크립트가 돌기 전의 기본(슬라이더 가운데, 중립 800 #454e59). color-preset.md 1.3.1 */
+  --glass: 69, 78, 89;
+  --ic-panel: 69, 78, 89;
+  --ic-panel-a: .62;
+  --ic-panel-hover-a: .78;
   --text: #ebeff4;
   --muted: #a9aeb6;
   --focus: #6aa7f4;
@@ -30,7 +38,11 @@
   color-scheme: dark;
 }
 :root[data-theme='light'] {
-  --glass: 244, 247, 251;
+  /* 위와 같음. 기본은 슬라이더 가운데(중립 200 #d5dfee) */
+  --glass: 213, 223, 238;
+  --ic-panel: 213, 223, 238;
+  --ic-panel-a: .62;
+  --ic-panel-hover-a: .78;
   --text: #1d2229;
   --muted: #585e66;
   --focus: #3a75bf;
@@ -91,6 +103,8 @@ button, input, select { font: inherit; color: inherit; }
 }
 .icon-btn svg { width: 18px; height: 18px; }
 .icon-btn:hover { background: rgba(var(--glass), .78); }
+/* 켜고 끄는 단추(편집 모드)가 켜져 있을 때 */
+.icon-btn[aria-pressed='true'] { background: var(--btn); color: var(--on-btn); border-color: var(--btn); }
 .status-dot {
   position: absolute; right: 5px; bottom: 5px; width: 9px; height: 9px; border-radius: 50%;
   box-shadow: 0 0 0 2px rgba(var(--glass), 1);
@@ -174,19 +188,22 @@ button, input, select { font: inherit; color: inherit; }
   gap: 18px 8px; user-select: none;
 }
 .grid > .tile { flex: 0 0 var(--tile-w); }
-.tile { position: relative; width: var(--tile-w); border-radius: 14px; }
+.tile { position: relative; width: var(--tile-w); height: var(--tile-cell-h); border-radius: 14px; }
 .tile .link {
+  position: relative; height: var(--tile-cell-h); justify-content: center;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   padding: 8px 2px; text-decoration: none; color: inherit; border-radius: 14px;
   -webkit-user-drag: none;
 }
 .tile .ic {
-  width: var(--tile-icon); height: var(--tile-icon); border-radius: 16px;
+  width: var(--tile-icon); height: var(--tile-icon); border-radius: 16px; flex: none;
   display: grid; place-items: center; overflow: hidden;
-  transition: transform .15s var(--ease), background .15s;
+  /* .glass의 유리색 대신 아이콘 판 색(테두리도 같은 색으로 맞춰 윤곽선이 드러나지 않게) */
+  background: rgba(var(--ic-panel), var(--ic-panel-a)); border-color: rgba(var(--ic-panel), .35);
+  transition: width .18s var(--ease), height .18s var(--ease), border-radius .18s var(--ease), transform .15s var(--ease), background .15s;
 }
-.tile .ic img { width: 50%; height: 50%; object-fit: contain; -webkit-user-drag: none; }
-.tile .ic img.custom { width: 62%; height: 62%; border-radius: 8px; }
+.tile .ic img,
+.tile .ic img.custom { width: var(--icon-scale, 50%); height: var(--icon-scale, 50%); object-fit: contain; border-radius: 8px; -webkit-user-drag: none; }
 .tile .ic .letter { font-size: calc(var(--tile-icon) * .4); font-weight: 600; color: var(--text); }
 /* 말줄임 때문에 overflow: hidden을 쓰는데, 그러면 글자 그림자(가장 큰 것은 '그림자만'의 16px 번짐 + 1px 내림)도
    상자 경계에서 잘린다. 그림자가 번질 만큼 padding을 주고 같은 만큼 margin을 빼서 자리는 그대로 둔다.
@@ -200,18 +217,68 @@ button, input, select { font: inherit; color: inherit; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-shadow: 0 1px 2px rgba(0, 0, 0, .7), 0 0 8px rgba(0, 0, 0, .4);
 }
-.tile .link:hover .ic { transform: translateY(-2px); background: rgba(var(--glass), .78); }
-.tile .more {
-  position: absolute; top: 2px; right: 6px; width: 24px; height: 24px; border-radius: 8px;
-  display: grid; place-items: center; padding: 0; cursor: pointer; opacity: 0;
-  transition: opacity .12s;
+/* 타일 활성 상태 = 마우스가 타일 위에 있거나, 타일 안의 링크·⋮가 키보드 초점(:focus-visible)을 가질 때.
+   떠오름·이름·⋮·배지가 모두 이 한 조건을 따르게 해서 일부만 켜진 어중간한 상태가 생기지 않게 한다.
+   마우스로 연 편집 창을 닫으면 브라우저가 초점을 ⋮로 돌려주지만(접근성 권고대로) :focus-visible이 아니므로
+   활성으로 치지 않는다. 그 상태에서 키를 누르면 :focus-visible이 되어 전부 함께 켜진다. */
+.tile {
+  --tile-lift: -2px;
+  /* 아이콘 상자의 크기와 윗변(타일 기준). 편집 칩을 아이콘 모서리에 붙이는 데 쓴다.
+     링크는 세로 가운데 정렬이므로 윗변 = (셀 높이 - 아이콘 - 간격 8px - 이름 한 줄 12.5px × 1.5) / 2.
+     .lb의 글자 크기·줄 높이나 .link의 간격·여백을 바꾸면 여기도 고칠 것(tests/dev/tile-active.mjs가 검사함). */
+  --ic-size: var(--tile-icon);
+  --ic-shift: 0px;
+  --ic-top: calc((var(--tile-cell-h) - var(--ic-size) - 8px - 12.5px * 1.5) / 2 + var(--ic-shift));
 }
-.tile .more svg { width: 14px; height: 14px; }
-.tile:hover .more, .tile .more:focus-visible { opacity: 1; }
+.tile:is(:hover, :has(:focus-visible)) :is(.ic, .badge) { transform: translateY(var(--tile-lift)); }
+.tile:is(:hover, :has(:focus-visible)) .ic { background: rgba(var(--ic-panel), var(--ic-panel-hover-a)); }
+
+/* 평소 이름 비표시 모드(data-show-label='false'): 셀 높이(--tile-cell-h)는 유지하고 이름 공간만큼 타일(.ic)을 키우며,
+   호버 시에는 기존 .tile .lb 스타일 그대로 아이콘 바로 아래 정중앙에 이름이 나타난다. */
+:root[data-show-label='false'] .tile .ic {
+  width: var(--tile-icon-expanded); height: var(--tile-icon-expanded); border-radius: 18px;
+}
+:root[data-show-label='false'] .tile {
+  --tile-lift: -4px;
+  --ic-size: var(--tile-icon-expanded);
+  --ic-top: calc((var(--tile-cell-h) - var(--ic-size)) / 2 + var(--ic-shift)); /* 이름이 흐름에서 빠져 아이콘만 가운데 */
+}
+:root[data-show-label='false'] .tile .lb {
+  position: absolute; top: calc(50% + var(--tile-icon-expanded) / 2 + 2px); left: 50%;
+  margin: calc(-1 * var(--lb-room)) 0 0 0; transform: translateX(-50%);
+  opacity: 0; z-index: 6; transition: opacity .15s var(--ease), color .3s ease, text-shadow .3s ease;
+}
+:root[data-show-label='false'][data-hover-label='true'] .tile:is(:hover, :has(:focus-visible)) .lb {
+  opacity: 1;
+}
+:root[data-show-label='false'] .badge {
+  top: calc((var(--tile-cell-h) - var(--tile-icon-expanded)) / 2 - 2px);
+  left: calc(50% + var(--tile-icon-expanded) / 2 - 10px);
+}
+/* 편집 칩: 아이콘 오른쪽 아래 모서리에 7px 걸친 둥근 연필 단추. 배지(오른쪽 위)와 자리를 다투지 않는다.
+   평소에는 마우스를 올린 타일에만 뜬다. 키보드 Tab은 멈추지 않으므로(grid.ts) 키보드 초점일 때는 띄우지 않는다
+   — 키보드 편집 길은 편집 모드와 메뉴 키. 아이콘과 함께 떠오른다. */
+.tile .more {
+  position: absolute; width: 24px; height: 24px; border-radius: 50%;
+  left: calc(50% + var(--ic-size) / 2 - 17px); top: calc(var(--ic-top) + var(--ic-size) - 17px);
+  display: grid; place-items: center; padding: 0; cursor: pointer; opacity: 0;
+  transition: opacity .12s, transform .15s var(--ease);
+}
+.tile .more svg { width: 12px; height: 12px; }
+.tile:hover .more { opacity: 1; }
+.tile:is(:hover, :has(:focus-visible)) .more { transform: translateY(var(--tile-lift)); }
+/* 편집 모드(오른쪽 위 편집 단추): 모든 바로가기에 편집 단추를 띄우고 아이콘을 점선으로 둘러 모드임을 알린다.
+   이때 타일을 누르면 사이트 대신 편집 창이 열린다(grid.ts). */
+:root[data-editing] .tile .more { opacity: 1; }
+:root[data-editing] .tile[data-id] .ic { outline: 1.5px dashed var(--muted); outline-offset: 3px; }
+/* 추가한 지 24시간 안의 바로가기 표시. 링크(.link) 안에 두어 누르면 그대로 사이트가 열리고,
+   마우스를 올리면 자기 툴팁(뜻)이 뜬다. .ic는 overflow: hidden이라 그 안에 넣지 않고 옆에 두며,
+   활성일 때 .ic와 같은 거리(--tile-lift)만큼 함께 떠오른다. */
 .badge {
   position: absolute; top: 4px; left: calc(50% + var(--tile-icon) / 2 - 8px);
   width: 12px; height: 12px; border-radius: 50%; background: var(--accent);
-  box-shadow: 0 0 0 2px rgba(var(--glass), 1); pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(var(--glass), 1);
+  transition: transform .15s var(--ease);
 }
 .tile.add .ic { color: var(--text); }
 .tile.add .ic svg { width: 40%; height: 40%; }
@@ -266,7 +333,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .3); }
 .icon-pick { display: flex; gap: 14px; align-items: center; margin-bottom: 16px; }
 .icon-pick .ic {
   width: 60px; height: 60px; border-radius: 16px; display: grid; place-items: center; flex: none;
-  background: rgba(var(--glass), .7); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--muted) 35%, transparent);
+  background: rgba(var(--ic-panel), var(--ic-panel-a)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--muted) 35%, transparent);
 }
 .icon-pick .ic img { width: 50%; height: 50%; object-fit: contain; }
 .icon-pick .ic img.custom { width: 62%; height: 62%; border-radius: 8px; }
@@ -423,6 +490,11 @@ dialog.drawer .sheet {
 .switch input:focus-visible + i { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 input[type='range'] { width: 150px; accent-color: var(--btn); }
+/* 슬라이더 양 끝이 무엇을 뜻하는지 바로 아래에 적는다. 슬라이더(150px)와 같은 폭으로 오른쪽에 붙인다 */
+.range-ends {
+  display: flex; justify-content: space-between; gap: 8px; width: 150px; margin: -6px 0 10px auto;
+  font-size: 11.5px; color: var(--muted);
+}
 input[type='color'] { width: 40px; height: 30px; border: 0; padding: 0; background: none; cursor: pointer; }
 .thumb {
   width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-md); margin-top: 10px;
@@ -469,9 +541,13 @@ input[type='color'] { width: 40px; height: 30px; border: 0; padding: 0; backgrou
   background: rgba(var(--glass), .86); backdrop-filter: blur(18px) saturate(1.2);
   border: 1px solid rgba(var(--glass), .35);
 }
+:root[data-legibility='card'] .tile { --ic-shift: 1px; } /* .link 위 여백(12px)이 아래(10px)보다 2px 커서 아이콘이 1px 내려감 */
+/* 카드 + 이름 표시: 아이콘·간격·이름 한 줄이 링크 안 공간보다 커서 이름이 줄어들고(overflow: hidden이라 최소 높이 0),
+   아이콘은 가운데가 아니라 맨 위(테두리 1px + 위 여백 12px)에서 시작한다. */
+:root[data-legibility='card']:not([data-show-label='false']) .tile { --ic-top: 13px; }
 :root[data-legibility='card'] .tile .ic { background: none; border: none; backdrop-filter: none; }
 :root[data-legibility='card'] .tile .lb { color: var(--text); text-shadow: none; }
-:root[data-legibility='card'] .tile .link:hover { background: rgba(var(--glass), .95); }
+:root[data-legibility='card'] .tile:is(:hover, :has(:focus-visible)) .link { background: rgba(var(--glass), .95); }
 :root[data-legibility='card'] .tile.placeholder .link { background: none; border: 2px dashed var(--accent); backdrop-filter: none; }
 
 .swatches { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; padding: 0 2px; }
@@ -529,6 +605,50 @@ dialog.intro h2 { margin-bottom: 8px; }
 }
 .choices button span { font-size: 12.5px; color: var(--muted); }
 .choices button[aria-pressed='true'] { box-shadow: inset 0 0 0 2px var(--btn); }
+
+/* ---- 아이콘 배경·여백 정리 모달 ---- */
+#icon-inspector .sheet { width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 40px); }
+.insp-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.insp-header h2 { margin-bottom: 4px; }
+.insp-header p { margin: 0; font-size: 13px; }
+.insp-toolbar {
+  display: grid; gap: 8px; padding: 10px 12px; border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--muted) 12%, transparent); margin-bottom: 12px; font-size: 12.5px;
+}
+.insp-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.insp-batch-row { border-top: 1px solid color-mix(in srgb, var(--muted) 22%, transparent); padding-top: 8px; }
+.insp-list { display: grid; gap: 8px; max-height: 50vh; overflow-y: auto; padding-right: 4px; margin-bottom: 12px; }
+.insp-card {
+  display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: var(--radius-md); background: rgba(var(--glass), .65);
+  border: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
+}
+.insp-card[data-checked='true'] { border-color: var(--focus); }
+.insp-info { display: grid; gap: 6px; min-width: 0; }
+.insp-title { font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.insp-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.insp-chip {
+  border: 1px solid color-mix(in srgb, var(--muted) 38%, transparent); background: rgba(var(--glass), .5);
+  color: var(--muted); border-radius: 7px; padding: 3px 8px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+}
+.insp-chip[aria-pressed='true'] { background: color-mix(in srgb, var(--btn) 22%, transparent); color: var(--text); border-color: var(--btn); }
+.insp-select {
+  height: 25px; border-radius: 7px; padding: 0 6px; font-size: 11.5px; color: var(--text);
+  background: rgba(var(--glass), .85); border: 1px solid color-mix(in srgb, var(--muted) 38%, transparent);
+}
+.insp-tag { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--muted) 20%, transparent); color: var(--text); }
+.insp-tag.warn { background: color-mix(in srgb, var(--warning) 22%, transparent); color: var(--warning); }
+.insp-tag.good { background: color-mix(in srgb, var(--success) 22%, transparent); color: var(--success); }
+.insp-tag.accent { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+.insp-hint { font-size: 12px; color: var(--muted); }
+.insp-compare { display: flex; align-items: center; gap: 8px; }
+.insp-preview-box {
+  width: 56px; height: 56px; border-radius: 15px; display: grid; place-items: center; position: relative;
+  background: rgba(25, 29, 35, .86); border: 1px solid color-mix(in srgb, var(--muted) 32%, transparent);
+}
+.insp-compare[data-preview-bg='light'] .insp-preview-box { background: rgba(244, 247, 251, .92); }
+.insp-preview-box img { width: var(--icon-scale, 50%); height: var(--icon-scale, 50%); object-fit: contain; border-radius: 6px; }
+.insp-arrow { color: var(--muted); font-size: 13px; }
 
 /* ---- 알림 ---- */
 .toasts {

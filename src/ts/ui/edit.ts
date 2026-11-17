@@ -85,7 +85,14 @@ export class EditDialog {
 
   #preview(): void {
     const url = normalizeUrl(this.url.value);
-    fillIcon(this.icon, { name: this.name.value || hostLabel(url) || '?', url: url || 'about:blank', customData: this.#currentCustom() });
+    const s = this.#id ? this.store.shortcuts.find((x) => x.id === this.#id) : undefined;
+    fillIcon(this.icon, {
+      id: s?.id,
+      name: this.name.value || hostLabel(url) || '?',
+      url: url || 'about:blank',
+      customData: this.#currentCustom(),
+      effects: this.#iconData === undefined ? s?.iconEffects : undefined,
+    });
     $('edit-icon-auto').hidden = !this.#currentCustom();
   }
 
@@ -99,7 +106,12 @@ export class EditDialog {
     }
     const name = this.name.value.trim() || hostLabel(url);
     if (this.#id) {
-      await this.store.updateShortcut(this.#id, { name, url, iconData: this.#iconData });
+      await this.store.updateShortcut(this.#id, {
+        name,
+        url,
+        iconData: this.#iconData,
+        iconEffects: this.#iconData !== undefined ? null : undefined,
+      });
     } else {
       await this.store.addShortcut({ name, url, iconData: this.#iconData || undefined });
     }

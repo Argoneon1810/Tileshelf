@@ -10,11 +10,13 @@ import { Grid } from './ui/grid.ts';
 import { SearchResults } from './ui/results.ts';
 import { EditDialog } from './ui/edit.ts';
 import { SettingsDrawer } from './ui/settings.ts';
+import { IconInspectorDialog } from './ui/icon-inspector.ts';
 import { toast } from './ui/toast.ts';
 import { Intro } from './ui/intro.ts';
 import { Background } from './background.ts';
 import { readableOn } from './gradient.ts';
 import { applyI18n, t } from './i18n.ts';
+import { applyPanelTone } from './panel-tone.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
 const root = document.documentElement;
@@ -50,12 +52,26 @@ function calmRect(): CalmRect | undefined {
 
 const background = new Background($('bg'), { calm: calmRect });
 
+let prevThemeMode: string | null = null;
+
 function applyLook(): void {
-  const { theme, tileSize, bgColor, accent, bgFit, dim, bgComposition, bgSeed, bgMotion } = store.settings;
+  const { theme, tileSize, iconScale, showLabel, hoverLabel, bgColor, accent, bgFit, dim, bgComposition, bgSeed, bgMotion } = store.settings;
   const mode = theme === 'system' ? (darkQuery.matches ? 'dark' : 'light') : theme;
+  const themeSwitched = prevThemeMode !== null && prevThemeMode !== mode;
+  prevThemeMode = mode;
+
   root.dataset.theme = mode;
   root.dataset.size = tileSize;
+  root.dataset.showLabel = String(showLabel);
+  root.dataset.hoverLabel = String(hoverLabel);
+  root.style.setProperty('--icon-scale', `${iconScale}%`);
   root.style.setProperty('--dim', String(dim));
+  applyPanelTone(root, mode, store.settings.panelTone);
+
+  if (themeSwitched && store.shortcuts.some((s) => s.iconEffects?.enabled)) {
+    renderGrid();
+    if (results.active) results.render();
+  }
 
   const kind = store.bgKind;
   const method = store.legibilityMethod;
@@ -79,6 +95,19 @@ const grid = new Grid($('grid'), store, {
 });
 const results = new SearchResults($('results'), $<HTMLInputElement>('q'), store, {
   onActiveChange: () => syncMainVisibility(),
+});
+
+// 편집 모드: 오른쪽 위 편집 단추로 켜고 끈다. 켜져 있으면 모든 바로가기에 편집 단추가 뜨고,
+// 타일을 누르거나 Enter를 치면 사이트 대신 편집 창이 열린다. Esc로도 끝낸다(열린 대화상자가 없을 때).
+const editModeBtn = $('edit-mode-btn');
+function setEditing(on: boolean): void {
+  grid.editing = on;
+  document.documentElement.toggleAttribute('data-editing', on);
+  editModeBtn.setAttribute('aria-pressed', String(on));
+}
+editModeBtn.addEventListener('click', () => setEditing(!grid.editing));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && grid.editing && !e.defaultPrevented && !document.querySelector('dialog[open]')) setEditing(false);
 });
 
 function syncMainVisibility(): void {
@@ -158,7 +187,14 @@ $('empty-import').addEventListener('click', openImport);
 
 // ---- 설정·동기화 표시 ----
 
-const settings = new SettingsDrawer(store, sync, { onExport: exportBackup, onImportClick: openImport, background });
+const inspector = new IconInspectorDialog(store);
+const settings = new SettingsDrawer(store, sync, {
+  onExport: exportBackup,
+  onImportClick: openImport,
+  onOpenInspector: () => void inspector.open(),
+  onOpenBake: () => inspector.openBakeWarning(),
+  background,
+});
 // 동기화는 손을 써야 할 때(실패, 용량 초과)만 설정 단추 위에 점으로 알린다. 평소 상태는 설정 서랍에서 본다.
 const SYNC_PROBLEMS: SyncStateName[] = ['error', 'too-big'];
 let syncProblem = false;
@@ -215,8 +251,24 @@ document.addEventListener('click', (e) => {
 // 바로가기를 먼저 그려야 배경이 그 자리를 알고 조용하게 그린다
 // 설정이 바뀌어도 필요한 부분만 다시 그린다. 바로가기 칸을 통째로 다시 만들면 아이콘과
 // 유리 효과가 한순간 다시 그려지며 번쩍인다. keys가 없으면(되돌리기·동기화) 설정 전체가 바뀐 것이다.
-const LOOK_KEYS: (keyof Settings)[] = ['theme', 'tileSize', 'bgType', 'bgColor', 'accent', 'bgFit', 'dim', 'bgComposition', 'bgSeed', 'bgMotion', 'legibility'];
-const GRID_KEYS: (keyof Settings)[] = ['openInNewTab'];
+const LOOK_KEYS: (keyof Settings)[] = [
+  'theme',
+  'tileSize',
+  'iconScale',
+  'panelTone',
+  'showLabel',
+  'hoverLabel',
+  'bgType',
+  'bgColor',
+  'accent',
+  'bgFit',
+  'dim',
+  'bgComposition',
+  'bgSeed',
+  'bgMotion',
+  'legibility',
+];
+const GRID_KEYS: (keyof Settings)[] = ['openInNewTab', 'showLabel', 'suppressTooltip'];
 const SEARCH_KEYS: (keyof Settings)[] = ['searchOrder', 'openInNewTab'];
 store.addEventListener('change', (e) => {
   const { parts, keys } = e.detail;
@@ -233,6 +285,8 @@ $('intro-again').addEventListener('click', () => {
   intro.open();
 });
 
+root.dataset.theme = store.settings.theme === 'system' ? (darkQuery.matches ? 'dark' : 'light') : store.settings.theme;
+prevThemeMode = root.dataset.theme;
 renderGrid();
 applyLook();
 // 처음 실행 안내는 동기화로 다른 PC의 설정이 들어오는지 먼저 본 뒤에 띄울지 정한다
